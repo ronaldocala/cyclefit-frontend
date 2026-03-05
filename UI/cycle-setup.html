@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CycleFit+ - Understand Your Cycle</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "primary": "#4e6e6d",
+                "background-light": "#F7F5F2",
+                "background-dark": "#171b1b",
+                "warm-sand": "#EFEAE4",
+              },
+              fontFamily: {
+                "display": ["Inter", "sans-serif"]
+              },
+              borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+            },
+          },
+        }
+      </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .form-select-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%234e6e6d' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100">
+<div class="relative flex h-auto min-h-screen w-full flex-col max-w-md mx-auto overflow-x-hidden">
+<!-- Top App Bar Navigation -->
+<div class="flex items-center p-4 pb-2 justify-between">
+<button aria-label="Back" class="text-primary flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<div class="flex-1 px-4">
+<span class="text-xs font-semibold uppercase tracking-widest text-primary/60">Step 1 of 3</span>
+</div>
+</div>
+<!-- Header Section -->
+<header class="px-6 pt-8 pb-6">
+<h1 class="text-slate-900 dark:text-slate-100 text-3xl font-bold leading-tight tracking-tight text-left">
+                Understand your cycle
+            </h1>
+<p class="text-slate-600 dark:text-slate-400 text-base font-normal leading-relaxed mt-3 text-left">
+                To give you the best predictions and personalized workouts, we need a few details about your rhythm.
+            </p>
+</header>
+<!-- Form Content -->
+<main class="flex-1 px-6 space-y-4">
+<!-- Card Wrapper for Form -->
+<div class="bg-warm-sand/50 dark:bg-primary/5 p-6 rounded-xl border border-primary/10">
+<div class="space-y-6">
+<!-- Field 1: Start Date -->
+<label class="flex flex-col gap-2">
+<span class="text-slate-800 dark:text-slate-200 text-sm font-semibold">Last period start date</span>
+<div class="relative">
+<input class="w-full rounded-lg border-primary/20 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 h-14 px-4 focus:ring-primary focus:border-primary transition-all" type="date" value="2023-10-24"/>
+</div>
+</label>
+<!-- Field 2: Cycle Length -->
+<label class="flex flex-col gap-2">
+<span class="text-slate-800 dark:text-slate-200 text-sm font-semibold">Average cycle length</span>
+<div class="relative">
+<select class="form-select-icon w-full rounded-lg border-primary/20 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 h-14 px-4 focus:ring-primary focus:border-primary transition-all">
+<option value="28">28 days (Typical)</option>
+<option value="21">21 days</option>
+<option value="22">22 days</option>
+<option value="23">23 days</option>
+<option value="24">24 days</option>
+<option value="25">25 days</option>
+<option value="26">26 days</option>
+<option value="27">27 days</option>
+<option value="29">29 days</option>
+<option value="30">30 days</option>
+<option value="31">31 days</option>
+<option value="32">32+ days</option>
+</select>
+</div>
+<p class="text-xs text-primary/70">From the first day of one period to the first day of the next.</p>
+</label>
+<!-- Field 3: Period Length -->
+<label class="flex flex-col gap-2">
+<span class="text-slate-800 dark:text-slate-200 text-sm font-semibold">Average period length</span>
+<div class="relative">
+<select class="form-select-icon w-full rounded-lg border-primary/20 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 h-14 px-4 focus:ring-primary focus:border-primary transition-all">
+<option value="5">5 days (Typical)</option>
+<option value="1">1 day</option>
+<option value="2">2 days</option>
+<option value="3">3 days</option>
+<option value="4">4 days</option>
+<option value="6">6 days</option>
+<option value="7">7 days</option>
+<option value="8">8+ days</option>
+</select>
+</div>
+</label>
+</div>
+</div>
+<!-- Helpful Tip Card -->
+<div class="flex items-start gap-4 p-4 rounded-xl bg-primary/5 border border-dashed border-primary/20 mt-4">
+<span class="material-symbols-outlined text-primary">info</span>
+<p class="text-sm text-slate-600 dark:text-slate-400">
+                    Your data is encrypted and used only to personalize your health insights.
+                </p>
+</div>
+</main>
+<!-- Footer Actions -->
+<footer class="p-6 mt-auto">
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2">
+                Continue
+                <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+<button class="w-full mt-4 text-primary font-medium text-sm text-center py-2">
+                I'm not sure, use defaults
+            </button>
+</footer>
+<!-- Decorative background element -->
+<div class="absolute -bottom-24 -right-24 size-64 bg-primary/5 rounded-full blur-3xl -z-10"></div>
+<div class="absolute -top-24 -left-24 size-64 bg-primary/5 rounded-full blur-3xl -z-10"></div>
+</div>
+</body></html>

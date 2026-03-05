@@ -1,0 +1,47 @@
+﻿import { useEffect } from "react";
+
+import { readCachedPremium } from "@/services/revenuecat/revenueCatService";
+import { getEntitlementStatus } from "@/services/supabase/premiumService";
+import { useAppStore } from "@/store/appStore";
+
+export function usePremiumStatus(isAuthenticated: boolean): void {
+  const setPremium = useAppStore((state) => state.setPremium);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function reconcilePremium(): Promise<void> {
+      if (!isAuthenticated) {
+        setPremium(false, "unknown");
+        return;
+      }
+
+      setPremium(false, "loading");
+
+      const cached = await readCachedPremium();
+      if (mounted && cached !== null) {
+        setPremium(cached, cached ? "active" : "expired");
+      }
+
+      try {
+        const entitlement = await getEntitlementStatus();
+        if (!mounted) {
+          return;
+        }
+
+        const isPremium = entitlement.is_active;
+        setPremium(isPremium, isPremium ? "active" : "expired");
+      } catch {
+        if (mounted) {
+          setPremium(false, "error");
+        }
+      }
+    }
+
+    void reconcilePremium();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthenticated, setPremium]);
+}

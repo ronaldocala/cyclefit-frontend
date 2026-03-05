@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CycleFit+ Today</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1F3F3E", // Deep Teal
+                        "sage": "#AEBFB4",
+                        "off-white": "#F7F5F2",
+                        "background-light": "#F7F5F2",
+                        "background-dark": "#171b1b",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F7F5F2;
+        }
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Header -->
+<header class="flex items-center justify-between px-6 pt-8 pb-4">
+<div class="flex flex-col">
+<h1 class="text-2xl font-bold text-primary dark:text-sage">Today</h1>
+<p class="text-sm text-slate-500 font-medium">Monday, June 12</p>
+</div>
+<button class="bg-white dark:bg-slate-800 p-2 rounded-full shadow-sm flex items-center justify-center border border-slate-100 dark:border-slate-700">
+<span class="material-symbols-outlined text-primary dark:text-sage">notifications</span>
+</button>
+</header>
+<main class="flex-1 px-6 pb-24">
+<!-- Circular Progress Section -->
+<div class="flex flex-col items-center justify-center py-10">
+<div class="relative flex items-center justify-center">
+<!-- SVG Progress Circle -->
+<svg class="w-64 h-64">
+<circle class="text-sage/20" cx="128" cy="128" fill="transparent" r="110" stroke="currentColor" stroke-width="8"></circle>
+<circle class="text-sage" cx="128" cy="128" fill="transparent" r="110" stroke="currentColor" stroke-dasharray="691" stroke-dashoffset="393" stroke-linecap="round" stroke-width="8" style="transform: rotate(-90deg); transform-origin: 50% 50%;"></circle>
+</svg>
+<!-- Inner Content -->
+<div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+<span class="text-primary font-semibold text-lg">Day 12</span>
+<span class="text-slate-400 text-xs uppercase tracking-widest font-bold">of 28</span>
+<h2 class="text-primary text-xl font-bold mt-2">Follicular Phase</h2>
+</div>
+</div>
+<div class="mt-6 text-center">
+<p class="text-slate-600 dark:text-slate-400 max-w-xs mx-auto text-sm leading-relaxed">
+                    Energy is rising. This is the perfect time for high-intensity movement and building strength.
+                </p>
+</div>
+</div>
+<!-- Today's Recommendation -->
+<div class="mt-4">
+<h3 class="text-lg font-bold text-primary dark:text-sage mb-4">Today's Recommendation</h3>
+<div class="bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700">
+<div class="h-48 w-full bg-cover bg-center" data-alt="Woman performing strength training exercises in gym" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCZuwaZbtcQgqwj6qibdGiBsW9RyHjr-9sGc9XvOyqAhV1dQD8Xq05J22g6n_VghzJRZp1EtYifjpVOkm2Epx62ltLSP9CCndkrJsSPcCCawPUrkXikOVMAr7HotOpbhkJp_YYfuV1wXZkKnQ9ffr3EYAoQW0p3Pj_tdsjjqENFYOK1L_s84tGlwSK01TyQCFd-4ppsu_Oa23JVtZzwro6mkq1RH1Dh20C6GM3Rm6IbInG69tiCQlb3uPlj918oEZW492lGxTl5Dy0')"></div>
+<div class="p-5">
+<div class="flex justify-between items-start mb-2">
+<h4 class="text-xl font-bold text-primary dark:text-sage">Strength Training</h4>
+<span class="bg-sage/20 text-primary text-xs font-bold px-2 py-1 rounded">35 MIN</span>
+</div>
+<p class="text-slate-600 dark:text-slate-400 text-sm mb-6 leading-relaxed">
+                        Focus on compound movements to maximize your energy peak during this phase. Squats and deadlifts are recommended.
+                    </p>
+<div class="flex flex-col gap-3">
+<button class="w-full bg-sage hover:bg-sage/90 text-primary font-bold py-3 rounded-lg transition-colors">
+                            Build your workout
+                        </button>
+<button class="w-full bg-transparent border-2 border-slate-200 dark:border-slate-700 hover:border-primary text-primary dark:text-sage font-bold py-3 rounded-lg transition-colors">
+                            Explore exercises
+                        </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Upgrade Prompt (Free User Context) -->
+<div class="mt-8 p-4 bg-primary text-white rounded-xl flex items-center justify-between">
+<div class="flex flex-col">
+<p class="text-sm font-bold">Unlock Personalized Nutrition</p>
+<p class="text-xs text-sage">Match your meals to your cycle</p>
+</div>
+<button class="bg-sage text-primary px-4 py-2 rounded-lg text-xs font-bold">Upgrade</button>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 px-6 pb-6 pt-3 flex justify-between items-center z-50">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">calendar_today</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Today</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Insights</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">fitness_center</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Workouts</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Profile</span>
+</a>
+</nav>
+</body></html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#4e6e6d",
+                        "background-light": "#f7f7f7",
+                        "background-dark": "#171b1b",
+                        "surface-light": "#F7F5F2",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center p-4">
+<div class="max-w-md w-full bg-white dark:bg-slate-900/50 rounded-xl shadow-sm border border-primary/10 overflow-hidden">
+<!-- Hero Image Section -->
+<div class="relative h-64 w-full">
+<img alt="Cyclist on a quiet road" class="w-full h-full object-cover" data-alt="Professional cyclist riding on a serene mountain road" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDAVl20wsFyOKW4WdQEh5PN_0YagD6GPnfVlIzxUmiMHqCqC9I_qyYfeAuSn5TpwAppsnWDvuuCZuUeBuirGqy5IwifNZxgcckXLYIWUVgCDHQxFhN1rVeRvWr3Fc6JI4wFmYLRqmAIBY0w8ihOhmAR5wg6_HzPc-I-4tOqYeXNRj_h5FCmAJVXN3H8vsdLQVCoKJUHsCy9J0B5QdX2cfATxVxuiIG_0WJGop1uKofXDolKR1LVx0zJBQ1W_GszJ_rtfUZkN9BBnNE"/>
+<div class="absolute inset-0 bg-gradient-to-t from-white dark:from-slate-900 to-transparent"></div>
+<div class="absolute top-6 left-6">
+<span class="bg-primary text-white px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase">CycleFit+</span>
+</div>
+</div>
+<!-- Content Section -->
+<div class="px-8 pb-10 pt-2 text-center">
+<h1 class="text-3xl font-semibold text-slate-900 dark:text-slate-100 mb-3 tracking-tight">
+                Unlock your full potential with Premium
+            </h1>
+<p class="text-slate-500 dark:text-slate-400 mb-8 text-sm leading-relaxed">
+                Elevate your performance with tools designed for serious cyclists. Focus on the ride, we'll handle the data.
+            </p>
+<!-- Benefits List -->
+<ul class="text-left space-y-5 mb-10">
+<li class="flex items-start">
+<div class="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+<span class="material-icons text-primary text-sm">check</span>
+</div>
+<div class="ml-4">
+<h3 class="text-sm font-semibold text-slate-800 dark:text-slate-200">Custom workout plans</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400">Tailored to your fitness level and seasonal goals.</p>
+</div>
+</li>
+<li class="flex items-start">
+<div class="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+<span class="material-icons text-primary text-sm">check</span>
+</div>
+<div class="ml-4">
+<h3 class="text-sm font-semibold text-slate-800 dark:text-slate-200">Premade structured sessions</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400">Instant access to power-based drills and recovery rides.</p>
+</div>
+</li>
+<li class="flex items-start">
+<div class="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+<span class="material-icons text-primary text-sm">check</span>
+</div>
+<div class="ml-4">
+<h3 class="text-sm font-semibold text-slate-800 dark:text-slate-200">Advanced progress insights</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400">Deep dive into your VO2 max, fatigue levels, and form.</p>
+</div>
+</li>
+</ul>
+<!-- Pricing / Trial Card -->
+<div class="bg-primary/5 dark:bg-primary/10 rounded-xl p-4 mb-6 border border-primary/10">
+<div class="flex justify-between items-center mb-1">
+<span class="text-xs font-medium text-primary">Annual Membership</span>
+<span class="text-xs text-slate-500 dark:text-slate-400">7 days free</span>
+</div>
+<div class="flex items-baseline gap-1">
+<span class="text-2xl font-bold text-slate-900 dark:text-slate-100">$9.99</span>
+<span class="text-sm text-slate-500 dark:text-slate-400">/ month, billed annually</span>
+</div>
+</div>
+<!-- Actions -->
+<div class="space-y-4">
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-4 rounded-xl transition-colors shadow-sm">
+                    Start 7-day free trial
+                </button>
+<button class="w-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-sm font-medium transition-colors">
+                    Skip for now
+                </button>
+</div>
+<!-- Footer Meta -->
+<p class="mt-8 text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                By starting your trial, you agree to our Terms of Service. After 7 days, you will be charged $119.99 annually unless cancelled. Cancel anytime in settings.
+            </p>
+</div>
+</div>
+</body></html>
