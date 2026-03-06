@@ -3,8 +3,9 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { useCyclePhase } from "@/features/cycle/hooks/useCyclePhase";
-import { demoCycleSettings } from "@/services/demo/demoData";
+import { demoCycleSettings, demoProfile } from "@/services/demo/demoData";
 import { getCycleSettings } from "@/services/supabase/cycleService";
+import { getProfile } from "@/services/supabase/profileService";
 import { useAppStore } from "@/store/appStore";
 import { useDemoMode } from "@/utils/demoMode";
 
@@ -59,12 +60,19 @@ export function useTodayScreen() {
   const isPremium = useAppStore((state) => state.isPremium);
   const isDemoMode = useDemoMode();
 
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: getProfile,
+    enabled: !isDemoMode
+  });
+
   const cycleQuery = useQuery({
     queryKey: ["cycleSettings"],
     queryFn: getCycleSettings,
     enabled: !isDemoMode
   });
 
+  const profile = isDemoMode ? demoProfile : (profileQuery.data ?? null);
   const cycleSettings = isDemoMode ? demoCycleSettings : (cycleQuery.data ?? null);
   const cycleSummary = useCyclePhase(cycleSettings);
 
@@ -78,9 +86,11 @@ export function useTodayScreen() {
 
   return {
     isPremium,
+    profile,
     cycleSummary,
+    cycleSettings,
     recommendation,
-    loading: !isDemoMode && cycleQuery.isLoading,
+    loading: !isDemoMode && (cycleQuery.isLoading || profileQuery.isLoading),
     isDemoMode
   };
 }

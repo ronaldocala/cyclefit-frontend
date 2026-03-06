@@ -29,14 +29,23 @@ type Props = CompositeScreenProps<
 const recommendationImage =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuAvA7FPN30Jq1T-2kC_f0pGuPbtApNaoidbQ_J4Rhh-t13P8ON1T8NC5Ocqcjzv3mHcI3AAEWZ9SL6xrP1Qs0oUS5C717BI1UYV08vIeDhRJWtKMc-6aO_e4AtopR3G1qmoYsGI_Y3mZPjt-SYsCWfTS2-vdiIgO6KzCW-urTIb21ShD9Wm1oL7YJ-jb3d1B4c6rWhsIoCH4Ap717jcl0idjo3grAdmr_NuB6mf3QemocyWtq91RKLrK6TwB6Pqxs7yPUwxiVTsac";
 
+const welcomeTemplates = [
+  "Welcome back, {name}",
+  "Good to see you, {name}",
+  "Ready to ride, {name}?",
+  "Let us make today count, {name}"
+] as const;
+
 export function TodayScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { isPremium, cycleSummary, recommendation, loading } = useTodayScreen();
+  const { isPremium, profile, cycleSummary, cycleSettings, recommendation, loading } = useTodayScreen();
   const isDemoMode = useDemoMode();
   const activeWorkout = useAppStore((state) => state.activeWorkout);
   const phaseOverride = useAppStore((state) => state.phaseOverride);
   const setPhaseOverride = useAppStore((state) => state.setPhaseOverride);
+  const displayName = useMemo(() => getFirstName(profile?.display_name), [profile?.display_name]);
+  const welcomeMessage = useMemo(() => buildWelcomeMessage(displayName), [displayName]);
   const hasActiveWorkout = Boolean(activeWorkout);
   const isActivePhaseWorkout =
     activeWorkout?.sourceType === "premium_workout" && activeWorkout?.sourceId === recommendation?.premiumWorkoutId;
@@ -74,6 +83,9 @@ export function TodayScreen({ navigation }: Props) {
         <View>
           <AppText variant="title">Today</AppText>
           <AppText variant="caption" muted>
+            {welcomeMessage}
+          </AppText>
+          <AppText variant="caption" muted>
             {new Date().toDateString()}
           </AppText>
         </View>
@@ -85,6 +97,7 @@ export function TodayScreen({ navigation }: Props) {
       <PhaseRing
         dayInCycle={cycleSummary.dayInCycle}
         cycleLengthDays={cycleSummary.cycleLengthDays}
+        periodLengthDays={cycleSettings?.period_length_days}
         phaseLabel={`${cycleSummary.phase[0].toUpperCase()}${cycleSummary.phase.slice(1)} Phase`}
       />
 
@@ -123,7 +136,7 @@ export function TodayScreen({ navigation }: Props) {
             {recommendation.workoutDescription}
           </AppText>
           <AppText variant="caption" muted>
-            Also try: {recommendation.alternateWorkouts.join(" • ")}
+            Also try: {recommendation.alternateWorkouts.join(" | ")}
           </AppText>
         </View>
 
@@ -220,6 +233,22 @@ export function TodayScreen({ navigation }: Props) {
       </View>
     </ScreenContainer>
   );
+}
+
+function getFirstName(displayName: string | null | undefined): string {
+  const trimmed = displayName?.trim();
+
+  if (!trimmed) {
+    return "Rider";
+  }
+
+  return trimmed.split(/\s+/)[0];
+}
+
+function buildWelcomeMessage(displayName: string): string {
+  const template = welcomeTemplates[Math.floor(Math.random() * welcomeTemplates.length)];
+
+  return template.replace("{name}", displayName);
 }
 
 async function handlePhaseOverride(
