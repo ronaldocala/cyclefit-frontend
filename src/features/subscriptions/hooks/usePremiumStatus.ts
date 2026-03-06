@@ -3,14 +3,21 @@
 import { readCachedPremium } from "@/services/revenuecat/revenueCatService";
 import { getEntitlementStatus } from "@/services/supabase/premiumService";
 import { useAppStore } from "@/store/appStore";
+import { useDemoMode } from "@/utils/demoMode";
 
 export function usePremiumStatus(isAuthenticated: boolean): void {
   const setPremium = useAppStore((state) => state.setPremium);
+  const isDemoMode = useDemoMode();
 
   useEffect(() => {
     let mounted = true;
 
     async function reconcilePremium(): Promise<void> {
+      if (isDemoMode) {
+        setPremium(true, "active");
+        return;
+      }
+
       if (!isAuthenticated) {
         setPremium(false, "unknown");
         return;
@@ -43,5 +50,5 @@ export function usePremiumStatus(isAuthenticated: boolean): void {
     return () => {
       mounted = false;
     };
-  }, [isAuthenticated, setPremium]);
+  }, [isAuthenticated, isDemoMode, setPremium]);
 }

@@ -1,5 +1,5 @@
-﻿import { useState } from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import { useMemo, useState } from "react";
+import { StyleSheet, TextInput } from "react-native";
 
 import { AppButton } from "@/components/AppButton";
 import { AppCard } from "@/components/AppCard";
@@ -7,9 +7,12 @@ import { AppText } from "@/components/AppText";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { useSettingsScreen } from "@/features/settings/hooks/useSettingsScreen";
 import { signOut } from "@/services/supabase/authService";
-import { colors, radius, spacing } from "@/theme/tokens";
+import { useThemeColors } from "@/theme/ThemeProvider";
+import { radius, spacing, type ThemeColors } from "@/theme/tokens";
 
 export function SettingsScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const {
     profile,
     cycleSettings,
@@ -17,23 +20,25 @@ export function SettingsScreen() {
     updateProfile,
     updateCycleSettings,
     restorePurchases,
+    openCustomerCenter,
     deletingAccount,
     deleteAccount,
-    restoring
+    restoring,
+    openingCustomerCenter
   } = useSettingsScreen();
 
   const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
 
   if (loading || !cycleSettings) {
     return (
-      <ScreenContainer contentContainerStyle={styles.content}>
+      <ScreenContainer includeBottomInset={false} contentContainerStyle={styles.content}>
         <AppText>Loading settings...</AppText>
       </ScreenContainer>
     );
   }
 
   return (
-    <ScreenContainer contentContainerStyle={styles.content}>
+    <ScreenContainer includeBottomInset={false} contentContainerStyle={styles.content}>
       <AppText variant="title">Settings</AppText>
 
       <AppCard>
@@ -81,6 +86,11 @@ export function SettingsScreen() {
       <AppCard>
         <AppText variant="subtitle">Subscription</AppText>
         <AppText muted>Restore purchases and sync entitlement status.</AppText>
+        <AppButton
+          label={openingCustomerCenter ? "Opening..." : "Manage subscription"}
+          variant="outline"
+          onPress={() => void openCustomerCenter()}
+        />
         <AppButton label={restoring ? "Restoring..." : "Restore purchases"} onPress={() => void restorePurchases()} />
       </AppCard>
 
@@ -93,17 +103,18 @@ export function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  content: {
-    paddingTop: spacing.md,
-    gap: spacing.lg
-  },
-  input: {
-    minHeight: 50,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    content: {
+      paddingTop: spacing.md,
+      gap: spacing.lg
+    },
+    input: {
+      minHeight: 50,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.md
+    }
+  });

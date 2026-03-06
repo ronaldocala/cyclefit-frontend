@@ -1,4 +1,22 @@
-﻿export const colors = {
+import type { CyclePhase } from "@/utils/constants";
+
+export type ThemeColors = {
+  primary: string;
+  primarySoft: string;
+  sage: string;
+  background: string;
+  surface: string;
+  surfaceMuted: string;
+  border: string;
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  success: string;
+  warning: string;
+  error: string;
+};
+
+const follicularColors: ThemeColors = {
   primary: "#1F3F3E",
   primarySoft: "#4E6E6D",
   sage: "#AEBFB4",
@@ -12,7 +30,74 @@
   success: "#2E7D32",
   warning: "#B26A00",
   error: "#B91C1C"
-} as const;
+};
+
+const menstrualColors: ThemeColors = {
+  primary: "#7A3E58",
+  primarySoft: "#A2607B",
+  sage: "#E0B9C8",
+  background: "#FFF6F8",
+  surface: "#FFFFFF",
+  surfaceMuted: "#F6E8EE",
+  border: "#EAD5DE",
+  textPrimary: "#321D27",
+  textSecondary: "#7D5A69",
+  textMuted: "#A98795",
+  success: "#2E7D32",
+  warning: "#B26A00",
+  error: "#B91C1C"
+};
+
+const ovulationColors: ThemeColors = {
+  primary: "#874715",
+  primarySoft: "#B76B2C",
+  sage: "#F0C79D",
+  background: "#FFF8F2",
+  surface: "#FFFFFF",
+  surfaceMuted: "#F7EBDD",
+  border: "#EEDBC7",
+  textPrimary: "#322012",
+  textSecondary: "#7A5A41",
+  textMuted: "#A6866A",
+  success: "#2E7D32",
+  warning: "#B26A00",
+  error: "#B91C1C"
+};
+
+const lutealColors: ThemeColors = {
+  primary: "#355165",
+  primarySoft: "#4F6D82",
+  sage: "#B8CBD7",
+  background: "#F5F8FB",
+  surface: "#FFFFFF",
+  surfaceMuted: "#E8EEF3",
+  border: "#D6E1EA",
+  textPrimary: "#142331",
+  textSecondary: "#5C7082",
+  textMuted: "#8798A7",
+  success: "#2E7D32",
+  warning: "#B26A00",
+  error: "#B91C1C"
+};
+
+const phaseColorPalettes: Record<CyclePhase, ThemeColors> = {
+  menstrual: menstrualColors,
+  follicular: follicularColors,
+  ovulation: ovulationColors,
+  luteal: lutealColors
+};
+
+export const defaultColors: ThemeColors = follicularColors;
+
+export function getColorsForPhase(phase: CyclePhase | null | undefined): ThemeColors {
+  if (!phase) {
+    return defaultColors;
+  }
+
+  return phaseColorPalettes[phase];
+}
+
+export const colors = defaultColors;
 
 export const spacing = {
   xs: 4,

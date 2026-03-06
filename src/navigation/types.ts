@@ -20,5 +20,5 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Main: undefined;
   PremiumUpsell: undefined;
-  WorkoutSession: { sourceType: "user_workout" | "premium_workout" | "quick_log"; sourceId?: string };
+  WorkoutSession: { sourceType: "user_workout" | "premium_workout" | "quick_log"; sourceId?: string; autoStart?: boolean };
 };

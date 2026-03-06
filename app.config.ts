@@ -19,11 +19,14 @@ const config: ExpoConfig = {
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     revenueCatAppleApiKey: process.env.EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY,
     revenueCatGoogleApiKey: process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY,
-    sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN
+    sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+    demoMode: process.env.EXPO_PUBLIC_DEMO_MODE
   },
   plugins: [
+    "expo-font",
     "expo-secure-store",
     "expo-apple-authentication",
+    "expo-web-browser",
     [
       "@sentry/react-native/expo",
       {

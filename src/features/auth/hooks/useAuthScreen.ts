@@ -1,6 +1,6 @@
-﻿import { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 
-import { sendMagicLink, signInWithApple } from "@/services/supabase/authService";
+import { sendMagicLink, signInWithApple, signInWithGoogle } from "@/services/supabase/authService";
 import { trackEvent } from "@/services/telemetry/analytics";
 import { parseUnknownError } from "@/utils/errors";
 
@@ -32,6 +32,7 @@ export function useAuthScreen() {
   const onSignInWithApple = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setMessage(null);
 
     try {
       await signInWithApple();
@@ -47,11 +48,31 @@ export function useAuthScreen() {
     }
   }, []);
 
+  const onSignInWithGoogle = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      await signInWithGoogle();
+      trackEvent("signup_complete", {
+        method: "google",
+        atIso: new Date().toISOString()
+      });
+    } catch (unknownError) {
+      const parsed = parseUnknownError(unknownError, "auth_google_failed");
+      setError(parsed.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   return {
     loading,
     message,
     error,
     onSendMagicLink,
-    onSignInWithApple
+    onSignInWithApple,
+    onSignInWithGoogle
   };
 }

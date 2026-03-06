@@ -1,6 +1,7 @@
-﻿import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 
 import { usePremiumStatus } from "@/features/subscriptions/hooks/usePremiumStatus";
@@ -10,29 +11,36 @@ import { OnboardingNavigator } from "@/navigation/OnboardingNavigator";
 import { PremiumUpsellScreen } from "@/screens/today/PremiumUpsellScreen";
 import { WorkoutSessionScreen } from "@/screens/workout-session/WorkoutSessionScreen";
 import { getProfile } from "@/services/supabase/profileService";
-import { colors } from "@/theme/tokens";
 import { useAuthStore } from "@/store/authStore";
+import { useThemeColors } from "@/theme/ThemeProvider";
+import { type ThemeColors } from "@/theme/tokens";
 
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const navigationTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: colors.background,
-    card: colors.surface,
-    text: colors.textPrimary,
-    border: colors.border,
-    primary: colors.primary,
-    notification: colors.primarySoft
-  }
-};
-
 export function AppNavigator() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const navigationTheme = useMemo(
+    () => ({
+      ...DefaultTheme,
+      colors: {
+        ...DefaultTheme.colors,
+        background: colors.background,
+        card: colors.surface,
+        text: colors.textPrimary,
+        border: colors.border,
+        primary: colors.primary,
+        notification: colors.primarySoft
+      }
+    }),
+    [colors]
+  );
+
   const session = useAuthStore((state) => state.session);
   const authLoading = useAuthStore((state) => state.loading);
+  const devSkipLogin = useAuthStore((state) => state.devSkipLogin);
 
   const profileQuery = useQuery({
     queryKey: ["profile"],
@@ -57,7 +65,11 @@ export function AppNavigator() {
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!session ? (
-          <Stack.Screen name="Auth" component={AuthNavigator} />
+          devSkipLogin ? (
+            <Stack.Screen name="Main" component={MainTabNavigator} />
+          ) : (
+            <Stack.Screen name="Auth" component={AuthNavigator} />
+          )
         ) : needsOnboarding ? (
           <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
         ) : (
@@ -70,11 +82,12 @@ export function AppNavigator() {
   );
 }
 
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.background
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    loading: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background
+    }
+  });

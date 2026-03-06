@@ -1,8 +1,8 @@
-ï»¿import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { CompositeScreenProps } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 
 import { AppButton } from "@/components/AppButton";
@@ -14,7 +14,9 @@ import { useTodayScreen } from "@/features/today/hooks/useTodayScreen";
 import { trackEvent } from "@/services/telemetry/analytics";
 import { updateProfile } from "@/services/supabase/profileService";
 import { useAppStore } from "@/store/appStore";
-import { colors, spacing } from "@/theme/tokens";
+import { useThemeColors } from "@/theme/ThemeProvider";
+import { spacing, type ThemeColors } from "@/theme/tokens";
+import { useDemoMode } from "@/utils/demoMode";
 import { phases, type CyclePhase } from "@/utils/constants";
 
 import type { MainTabParamList, RootStackParamList } from "@/navigation/types";
@@ -25,12 +27,19 @@ type Props = CompositeScreenProps<
 >;
 
 const recommendationImage =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuAvA7FPN30Jq1T-2kC_f0pGuPbtApNaoidbQ_J4Rhh-t13P8ON1T8NC5Ocqcjzv3mHcI3AAEWZ9SL6xrP1Qs0oUS5C717BI1UYV08vIeDhRJWtKMc-6aO_e4AtopR3G1qmoYsGI_Y3mZzPjt-SYsCWfTS2-vdiIgO6KzCW-urTIb21ShD9Wm1oL7YJ-jb3d1B4c6rWhsIoCH4Ap717jcl0idjo3grAdmr_NuB6mf3QemocyWtq91RKLrK6TwB6Pqxs7yPUwxiVTsac";
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuAvA7FPN30Jq1T-2kC_f0pGuPbtApNaoidbQ_J4Rhh-t13P8ON1T8NC5Ocqcjzv3mHcI3AAEWZ9SL6xrP1Qs0oUS5C717BI1UYV08vIeDhRJWtKMc-6aO_e4AtopR3G1qmoYsGI_Y3mZPjt-SYsCWfTS2-vdiIgO6KzCW-urTIb21ShD9Wm1oL7YJ-jb3d1B4c6rWhsIoCH4Ap717jcl0idjo3grAdmr_NuB6mf3QemocyWtq91RKLrK6TwB6Pqxs7yPUwxiVTsac";
 
 export function TodayScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { isPremium, cycleSummary, recommendation, loading } = useTodayScreen();
+  const isDemoMode = useDemoMode();
+  const activeWorkout = useAppStore((state) => state.activeWorkout);
   const phaseOverride = useAppStore((state) => state.phaseOverride);
   const setPhaseOverride = useAppStore((state) => state.setPhaseOverride);
+  const hasActiveWorkout = Boolean(activeWorkout);
+  const isActivePhaseWorkout =
+    activeWorkout?.sourceType === "premium_workout" && activeWorkout?.sourceId === recommendation?.premiumWorkoutId;
 
   useEffect(() => {
     if (recommendation) {
@@ -41,16 +50,26 @@ export function TodayScreen({ navigation }: Props) {
     }
   }, [recommendation]);
 
-  if (loading || !cycleSummary || !recommendation) {
+  if (loading) {
     return (
-      <ScreenContainer contentContainerStyle={styles.loadingWrap}>
+      <ScreenContainer includeBottomInset={false} contentContainerStyle={styles.loadingWrap}>
         <AppText>Loading today summary...</AppText>
       </ScreenContainer>
     );
   }
 
+  if (!cycleSummary || !recommendation) {
+    return (
+      <ScreenContainer includeBottomInset={false} contentContainerStyle={styles.loadingWrap}>
+        <AppText>
+          {isDemoMode ? "Demo data unavailable." : "Could not load today summary. Check your backend connection."}
+        </AppText>
+      </ScreenContainer>
+    );
+  }
+
   return (
-    <ScreenContainer contentContainerStyle={styles.content}>
+    <ScreenContainer includeBottomInset={false} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View>
           <AppText variant="title">Today</AppText>
@@ -96,24 +115,44 @@ export function TodayScreen({ navigation }: Props) {
             <AppText variant="title">{recommendation.title}</AppText>
             <View style={styles.durationTag}>
               <AppText variant="overline" style={styles.durationText}>
-                35 MIN
+                {recommendation.durationMinutes} MIN
               </AppText>
             </View>
           </View>
           <AppText muted>
-            Focus on form and consistency, align training effort with your cycle for better recovery.
+            {recommendation.workoutDescription}
+          </AppText>
+          <AppText variant="caption" muted>
+            Also try: {recommendation.alternateWorkouts.join(" • ")}
           </AppText>
         </View>
 
         {isPremium ? (
           <AppButton
-            label={recommendation.premiumAction}
-            onPress={() => navigation.navigate("WorkoutSession", { sourceType: "premium_workout" })}
+            label={isActivePhaseWorkout ? "Continue Workout" : recommendation.premiumAction}
+            onPress={() =>
+              navigation.navigate("WorkoutSession", {
+                sourceType: "premium_workout",
+                sourceId: recommendation.premiumWorkoutId,
+                autoStart: !isActivePhaseWorkout
+              })
+            }
             rightSlot={<MaterialIcons name="play-circle-filled" color={colors.surface} size={20} />}
           />
         ) : (
           <View style={styles.freeActions}>
-            <AppButton label={recommendation.freeActions[0]} variant="secondary" onPress={() => navigation.navigate("Workouts")} />
+            <AppButton
+              label={hasActiveWorkout ? "Continue Workout" : recommendation.freeActions[0]}
+              variant="secondary"
+              onPress={() =>
+                activeWorkout
+                  ? navigation.navigate("WorkoutSession", {
+                      sourceType: activeWorkout.sourceType,
+                      sourceId: activeWorkout.sourceId
+                    })
+                  : navigation.navigate("Workouts")
+              }
+            />
             <AppButton label={recommendation.freeActions[1]} variant="outline" onPress={() => navigation.navigate("Workouts")} />
           </View>
         )}
@@ -145,14 +184,14 @@ export function TodayScreen({ navigation }: Props) {
             <AppText variant="overline" muted>
               NUTRITION
             </AppText>
-            <AppText variant="bodyStrong">Iron-rich foods</AppText>
+            <AppText variant="bodyStrong">{recommendation.nutritionSuggestion}</AppText>
           </AppCard>
           <AppCard style={styles.smallInsightCard}>
             <MaterialIcons name="bedtime" color={colors.sage} size={20} />
             <AppText variant="overline" muted>
               SLEEP GOAL
             </AppText>
-            <AppText variant="bodyStrong">8h 15m suggested</AppText>
+            <AppText variant="bodyStrong">{recommendation.sleepGoal}</AppText>
           </AppCard>
         </View>
       )}
@@ -162,14 +201,17 @@ export function TodayScreen({ navigation }: Props) {
           Manual phase override
         </AppText>
         <View style={styles.chipRow}>
-          <Pressable style={[styles.overrideChip, phaseOverride === null ? styles.overrideChipActive : undefined]} onPress={() => void handlePhaseOverride(null, setPhaseOverride)}>
+          <Pressable
+            style={[styles.overrideChip, phaseOverride === null ? styles.overrideChipActive : undefined]}
+            onPress={() => void handlePhaseOverride(null, setPhaseOverride, isDemoMode)}
+          >
             <AppText variant="caption">Auto</AppText>
           </Pressable>
           {phases.map((phase) => (
             <Pressable
               key={phase}
               style={[styles.overrideChip, phaseOverride === phase ? styles.overrideChipActive : undefined]}
-              onPress={() => void handlePhaseOverride(phase, setPhaseOverride)}
+              onPress={() => void handlePhaseOverride(phase, setPhaseOverride, isDemoMode)}
             >
               <AppText variant="caption">{phase}</AppText>
             </Pressable>
@@ -180,119 +222,124 @@ export function TodayScreen({ navigation }: Props) {
   );
 }
 
-async function handlePhaseOverride(phase: CyclePhase | null, setPhaseOverride: (phase: CyclePhase | null) => void): Promise<void> {
+async function handlePhaseOverride(
+  phase: CyclePhase | null,
+  setPhaseOverride: (phase: CyclePhase | null) => void,
+  isDemoMode: boolean
+): Promise<void> {
   setPhaseOverride(phase);
   trackEvent("phase_override_set", { phase: phase ?? "auto", atIso: new Date().toISOString() });
 
-  if (phase) {
+  if (phase && !isDemoMode) {
     await updateProfile({ last_seen_phase: phase });
   }
 }
 
-const styles = StyleSheet.create({
-  content: {
-    paddingTop: spacing.md,
-    gap: spacing.lg
-  },
-  loadingWrap: {
-    flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center"
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-  headerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  note: {
-    textAlign: "center"
-  },
-  rowBetween: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-  premiumInlineBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#EAF2EF",
-    borderRadius: 999,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    marginTop: 8
-  },
-  premiumInlineText: {
-    color: colors.primary
-  },
-  recommendationImage: {
-    width: "100%",
-    height: 180,
-    borderRadius: 12,
-    marginTop: 14,
-    marginBottom: 14
-  },
-  recommendationContent: {
-    gap: 10,
-    marginBottom: 12
-  },
-  durationTag: {
-    borderRadius: 6,
-    backgroundColor: "#E6ECE9",
-    paddingHorizontal: 8,
-    paddingVertical: 4
-  },
-  durationText: {
-    color: colors.primary
-  },
-  freeActions: {
-    gap: spacing.sm
-  },
-  upgradeCard: {
-    backgroundColor: colors.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-  upgradeTitle: {
-    color: colors.surface
-  },
-  upgradeSubtitle: {
-    color: "#D8E3DE"
-  },
-  insightsRow: {
-    flexDirection: "row",
-    gap: spacing.sm
-  },
-  smallInsightCard: {
-    flex: 1,
-    gap: 6,
-    backgroundColor: "#EEF2F0"
-  },
-  overrideSection: {
-    gap: spacing.sm
-  },
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm
-  },
-  overrideChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: colors.surface
-  },
-  overrideChipActive: {
-    borderColor: colors.sage,
-    backgroundColor: colors.sage
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    content: {
+      paddingTop: spacing.md,
+      gap: spacing.lg
+    },
+    loadingWrap: {
+      flexGrow: 1,
+      justifyContent: "center",
+      alignItems: "center"
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between"
+    },
+    headerIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    note: {
+      textAlign: "center"
+    },
+    rowBetween: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between"
+    },
+    premiumInlineBadge: {
+      alignSelf: "flex-start",
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: 999,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+      marginTop: 8
+    },
+    premiumInlineText: {
+      color: colors.primary
+    },
+    recommendationImage: {
+      width: "100%",
+      height: 180,
+      borderRadius: 12,
+      marginTop: 14,
+      marginBottom: 14
+    },
+    recommendationContent: {
+      gap: 10,
+      marginBottom: 12
+    },
+    durationTag: {
+      borderRadius: 6,
+      backgroundColor: colors.surfaceMuted,
+      paddingHorizontal: 8,
+      paddingVertical: 4
+    },
+    durationText: {
+      color: colors.primary
+    },
+    freeActions: {
+      gap: spacing.sm
+    },
+    upgradeCard: {
+      backgroundColor: colors.primary,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between"
+    },
+    upgradeTitle: {
+      color: colors.surface
+    },
+    upgradeSubtitle: {
+      color: colors.sage
+    },
+    insightsRow: {
+      flexDirection: "row",
+      gap: spacing.sm
+    },
+    smallInsightCard: {
+      flex: 1,
+      gap: 6,
+      backgroundColor: colors.surfaceMuted
+    },
+    overrideSection: {
+      gap: spacing.sm
+    },
+    chipRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm
+    },
+    overrideChip: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: colors.surface
+    },
+    overrideChipActive: {
+      borderColor: colors.sage,
+      backgroundColor: colors.sage
+    }
+  });

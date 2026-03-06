@@ -1,8 +1,8 @@
-﻿import { StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import { AppText } from "@/components/AppText";
-import { colors } from "@/theme/tokens";
+import { useThemeColors } from "@/theme/ThemeProvider";
 
 type PhaseRingProps = {
   dayInCycle: number;
@@ -12,6 +12,7 @@ type PhaseRingProps = {
 };
 
 export function PhaseRing({ dayInCycle, cycleLengthDays, phaseLabel, size = 220 }: PhaseRingProps) {
+  const colors = useThemeColors();
   const stroke = 10;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;

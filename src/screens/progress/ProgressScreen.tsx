@@ -1,16 +1,20 @@
-﻿import { StyleSheet, View } from "react-native";
+import { useMemo } from "react";
+import { StyleSheet, View } from "react-native";
 
 import { AppCard } from "@/components/AppCard";
 import { AppText } from "@/components/AppText";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { useProgressScreen } from "@/features/progress/hooks/useProgressScreen";
-import { colors, spacing } from "@/theme/tokens";
+import { useThemeColors } from "@/theme/ThemeProvider";
+import { spacing, type ThemeColors } from "@/theme/tokens";
 
 export function ProgressScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { loading, stats } = useProgressScreen();
 
   return (
-    <ScreenContainer contentContainerStyle={styles.content}>
+    <ScreenContainer includeBottomInset={false} contentContainerStyle={styles.content}>
       <AppText variant="title">Progress</AppText>
 
       {loading ? <AppText>Loading progress...</AppText> : null}
@@ -50,34 +54,35 @@ export function ProgressScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  content: {
-    paddingTop: spacing.md,
-    gap: spacing.lg
-  },
-  row: {
-    flexDirection: "row",
-    gap: spacing.sm
-  },
-  metricBox: {
-    flex: 1,
-    borderRadius: 12,
-    backgroundColor: "#EEF2F0",
-    padding: spacing.lg,
-    gap: 4
-  },
-  bars: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: spacing.sm
-  },
-  barWrap: {
-    alignItems: "center",
-    gap: 4
-  },
-  bar: {
-    width: 18,
-    borderRadius: 6,
-    backgroundColor: colors.sage
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    content: {
+      paddingTop: spacing.md,
+      gap: spacing.lg
+    },
+    row: {
+      flexDirection: "row",
+      gap: spacing.sm
+    },
+    metricBox: {
+      flex: 1,
+      borderRadius: 12,
+      backgroundColor: colors.surfaceMuted,
+      padding: spacing.lg,
+      gap: 4
+    },
+    bars: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      gap: spacing.sm
+    },
+    barWrap: {
+      alignItems: "center",
+      gap: 4
+    },
+    bar: {
+      width: 18,
+      borderRadius: 6,
+      backgroundColor: colors.sage
+    }
+  });

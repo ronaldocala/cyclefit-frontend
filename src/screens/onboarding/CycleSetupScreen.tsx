@@ -1,6 +1,7 @@
-﻿import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
@@ -10,7 +11,8 @@ import { AppCard } from "@/components/AppCard";
 import { AppText } from "@/components/AppText";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { useCycleSetupScreen } from "@/features/onboarding/hooks/useCycleSetupScreen";
-import { colors, radius, spacing } from "@/theme/tokens";
+import { useThemeColors } from "@/theme/ThemeProvider";
+import { radius, spacing, type ThemeColors } from "@/theme/tokens";
 import { toIsoDate } from "@/utils/date";
 
 import type { OnboardingStackParamList } from "@/navigation/types";
@@ -29,6 +31,8 @@ const cycleOptions = [24, 26, 28, 30, 32];
 const periodOptions = [3, 4, 5, 6, 7];
 
 export function CycleSetupScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { saveSettings, loading } = useCycleSetupScreen();
 
   const { watch, setValue, register, handleSubmit, formState } = useForm<FormValues>({
@@ -127,66 +131,67 @@ export function CycleSetupScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  content: {
-    paddingTop: spacing.md,
-    gap: spacing.lg
-  },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm
-  },
-  header: {
-    gap: spacing.sm
-  },
-  formCard: {
-    gap: spacing.md,
-    backgroundColor: colors.surfaceMuted
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    minHeight: 50,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg
-  },
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm
-  },
-  chip: {
-    paddingHorizontal: spacing.md,
-    minHeight: 38,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface
-  },
-  chipActive: {
-    backgroundColor: colors.sage,
-    borderColor: colors.sage
-  },
-  chipActiveText: {
-    color: colors.primary
-  },
-  tipCard: {
-    backgroundColor: "#F4F8F7",
-    borderStyle: "dashed"
-  },
-  tipRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md
-  },
-  tipText: {
-    flex: 1
-  },
-  error: {
-    color: colors.error
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    content: {
+      paddingTop: spacing.md,
+      gap: spacing.lg
+    },
+    backButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm
+    },
+    header: {
+      gap: spacing.sm
+    },
+    formCard: {
+      gap: spacing.md,
+      backgroundColor: colors.surfaceMuted
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      minHeight: 50,
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.lg
+    },
+    chipRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm
+    },
+    chip: {
+      paddingHorizontal: spacing.md,
+      minHeight: 38,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface
+    },
+    chipActive: {
+      backgroundColor: colors.sage,
+      borderColor: colors.sage
+    },
+    chipActiveText: {
+      color: colors.primary
+    },
+    tipCard: {
+      backgroundColor: colors.surface,
+      borderStyle: "dashed"
+    },
+    tipRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md
+    },
+    tipText: {
+      flex: 1
+    },
+    error: {
+      color: colors.error
+    }
+  });

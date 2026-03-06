@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CycleFit+ | Strength &amp; Toning</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1F3F3E", // Dark Teal for buttons/actions
+                        "sage": "#AEBFB4",    // Sage for badge
+                        "sand": "#F2EFE9",    // Warm Sand for cards
+                        "background-light": "#F7F5F2", // Off-White
+                        "background-dark": "#171B1B",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
+<!-- Top Navigation Bar -->
+<header class="sticky top-0 z-10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md px-4 py-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-sand dark:hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-slate-700 dark:text-slate-300">arrow_back</span>
+</button>
+<h1 class="text-xl font-bold tracking-tight">Strength &amp; Toning</h1>
+</div>
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-sand dark:hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-slate-700 dark:text-slate-300">more_vert</span>
+</button>
+</header>
+<main class="max-w-2xl mx-auto px-4 pb-20">
+<!-- Phase Badge -->
+<div class="mb-6">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-sage text-primary text-xs font-semibold tracking-wide uppercase">
+                Follicular Phase
+            </span>
+</div>
+<!-- Session Overview Cards -->
+<section class="grid grid-cols-3 gap-3 mb-8">
+<div class="bg-sand dark:bg-primary/10 p-4 rounded-xl flex flex-col gap-1">
+<span class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">Duration</span>
+<span class="text-lg font-bold text-primary dark:text-sage">35 mins</span>
+</div>
+<div class="bg-sand dark:bg-primary/10 p-4 rounded-xl flex flex-col gap-1">
+<span class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">Intensity</span>
+<span class="text-lg font-bold text-primary dark:text-sage">Moderate</span>
+</div>
+<div class="bg-sand dark:bg-primary/10 p-4 rounded-xl flex flex-col gap-1">
+<span class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">Focus</span>
+<span class="text-lg font-bold text-primary dark:text-sage">Full Body</span>
+</div>
+</section>
+<!-- Segment: Warm-up -->
+<section class="mb-8">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-lg font-bold flex items-center gap-2">
+                    Warm-up <span class="text-sm font-normal text-slate-500">(5 mins)</span>
+</h2>
+</div>
+<div class="bg-sand dark:bg-primary/5 rounded-2xl overflow-hidden divide-y divide-primary/5">
+<div class="flex items-center gap-4 p-4">
+<div class="w-10 h-10 rounded-lg bg-white dark:bg-background-dark flex items-center justify-center text-primary dark:text-sage">
+<span class="material-symbols-outlined">sync_alt</span>
+</div>
+<div class="flex-1">
+<p class="font-medium">Neck &amp; Shoulder Circles</p>
+<p class="text-xs text-slate-500">1 minute</p>
+</div>
+</div>
+<div class="flex items-center gap-4 p-4">
+<div class="w-10 h-10 rounded-lg bg-white dark:bg-background-dark flex items-center justify-center text-primary dark:text-sage">
+<span class="material-symbols-outlined">accessibility_new</span>
+</div>
+<div class="flex-1">
+<p class="font-medium">Dynamic Side Lunges</p>
+<p class="text-xs text-slate-500">2 minutes</p>
+</div>
+</div>
+<div class="flex items-center gap-4 p-4">
+<div class="w-10 h-10 rounded-lg bg-white dark:bg-background-dark flex items-center justify-center text-primary dark:text-sage">
+<span class="material-symbols-outlined">directions_run</span>
+</div>
+<div class="flex-1">
+<p class="font-medium">Arm Swings &amp; Reach</p>
+<p class="text-xs text-slate-500">2 minutes</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Segment: Main Sets -->
+<section class="mb-8">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-lg font-bold flex items-center gap-2">
+                    Main Sets <span class="text-sm font-normal text-slate-500">(20 mins)</span>
+</h2>
+</div>
+<div class="space-y-4">
+<!-- Exercise Card 1 -->
+<div class="bg-sand dark:bg-primary/5 p-4 rounded-2xl">
+<div class="flex justify-between items-start mb-4">
+<div class="flex gap-4">
+<div class="w-16 h-16 rounded-xl bg-white dark:bg-background-dark overflow-hidden shrink-0 border border-primary/5">
+<img alt="Fitness dumbbell" class="w-full h-full object-cover opacity-80" data-alt="Dumbbells on a gym floor" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5R-T7wqzRtqW5zmW_UUbPxxzJ-PL3foTRio4QRKlD65l28JFuSo6pyI1__o_AQmMKnamEZBzZJDKBSR5geSZauR2k66eYa2qRDOZOF-CHxEdYw3Szbp74n0nm8Bvtia3mMpNJQOPxIBAd4hA7fYQo-vHgWHE3dnjo5tf2tQFhMYtTnhimHJ3bN9MPV0WC4RLSeaGvettuWTcKHl1vh3ASwHfMKfwsKgOeKr-ndUYUoCGiSRtZM6yIDB8dli1bzPVYmv7BwKL7M5I"/>
+</div>
+<div>
+<h3 class="font-bold">Goblet Squats</h3>
+<p class="text-sm text-slate-500 mb-2">Target: Quads &amp; Glutes</p>
+<div class="flex gap-3">
+<span class="text-xs font-semibold bg-white/50 dark:bg-background-dark px-2 py-0.5 rounded">3 Sets</span>
+<span class="text-xs font-semibold bg-white/50 dark:bg-background-dark px-2 py-0.5 rounded">12 Reps</span>
+</div>
+</div>
+</div>
+<button class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-sm">play_arrow</span>
+                            Start Set
+                        </button>
+</div>
+</div>
+<!-- Exercise Card 2 -->
+<div class="bg-sand dark:bg-primary/5 p-4 rounded-2xl">
+<div class="flex justify-between items-start mb-4">
+<div class="flex gap-4">
+<div class="w-16 h-16 rounded-xl bg-white dark:bg-background-dark overflow-hidden shrink-0 border border-primary/5">
+<img alt="Yoga pushups" class="w-full h-full object-cover opacity-80" data-alt="Person doing pushups on a yoga mat" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGjGs3oKsyEYvwkRforlKVFGZVvgfyAqbOGzPUH9oamyLF5-4RXnIR2n3mv-R2KknNz5S26cUymSxVY-_s5n5BXoN5HFcks4rcT7YEQhU-4k1-h7qxOqddgt6Ts4e6ECir4CEH-fCCp49BpwzgrUczhaHT329sSpyUKzs3GBre2gNePWq8IF-X87HnjLXiZ5QFr0IQCuMAj4YslVZKap6G88Dk1vWgOQeY6Wz7JmmcWHD1K4H1XFe7QuQUQyBNc8NkyybsPP8p66o"/>
+</div>
+<div>
+<h3 class="font-bold">Dumbbell Chest Press</h3>
+<p class="text-sm text-slate-500 mb-2">Target: Chest &amp; Triceps</p>
+<div class="flex gap-3">
+<span class="text-xs font-semibold bg-white/50 dark:bg-background-dark px-2 py-0.5 rounded">3 Sets</span>
+<span class="text-xs font-semibold bg-white/50 dark:bg-background-dark px-2 py-0.5 rounded">10 Reps</span>
+</div>
+</div>
+</div>
+<button class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-sm">play_arrow</span>
+                            Start Set
+                        </button>
+</div>
+</div>
+<!-- Exercise Card 3 -->
+<div class="bg-sand dark:bg-primary/5 p-4 rounded-2xl">
+<div class="flex justify-between items-start mb-4">
+<div class="flex gap-4">
+<div class="w-16 h-16 rounded-xl bg-white dark:bg-background-dark overflow-hidden shrink-0 border border-primary/5">
+<img alt="Rowing exercise" class="w-full h-full object-cover opacity-80" data-alt="Fitness equipment for rowing exercise" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZCzPTlpqiGW_XYIGWozmceqyeK78Z8ujzNa32fTIM4A9dTC2agx_urHR0hj1JQ3xa-eycFXzPtokqSLSFLLm9_VCq7Swb2WqTtlDsS5sWtp3gsVZXKWVYRW5ET3rhx8mUzkIbOuZ5kzQK1tA9nCVbAK0J0zqzQe15UU0Tt4IUJcxx1g-zHoVHMuey4Az5vgYoDpnyM4K2y4_ajuHYpfyp1ecdh-9pmi-kUCw1GA26mU6bn7Hu7-MIfEbOSING4lbF3TbWDwQa4Eg"/>
+</div>
+<div>
+<h3 class="font-bold">Single-Arm Rows</h3>
+<p class="text-sm text-slate-500 mb-2">Target: Upper Back</p>
+<div class="flex gap-3">
+<span class="text-xs font-semibold bg-white/50 dark:bg-background-dark px-2 py-0.5 rounded">3 Sets</span>
+<span class="text-xs font-semibold bg-white/50 dark:bg-background-dark px-2 py-0.5 rounded">12 Reps</span>
+</div>
+</div>
+</div>
+<button class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-sm">play_arrow</span>
+                            Start Set
+                        </button>
+</div>
+</div>
+<!-- Exercise Card 4 -->
+<div class="bg-sand dark:bg-primary/5 p-4 rounded-2xl">
+<div class="flex justify-between items-start mb-4">
+<div class="flex gap-4">
+<div class="w-16 h-16 rounded-xl bg-white dark:bg-background-dark overflow-hidden shrink-0 border border-primary/5">
+<img alt="Abdominal workout" class="w-full h-full object-cover opacity-80" data-alt="Person performing a core plank workout" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAk8iQvjWMSDwLWBmt0IcW8yD4W1IOFjCxGQWxVftvbj7qvabHFizMuaiciPSMnLuId7QdU1r6ZTcyBMVRsFLz7sYbop6uYaRG9SP0G8fv53DXbUb4LzGE5lx979Ka1_ghXXypTV9Mqr9ATVJ5Sc-m6P7V8h93OC7kz7XZwo7x9lo32cW1F9egMF8W81w_2tAuOYIzToL9Ykj97WlmpjTFcx4bPJkTH8JZV-Wn5xriFhzkfyBY8bwcHhFpvIEq5HzSNKz8ezJgRdR8"/>
+</div>
+<div>
+<h3 class="font-bold">Plank to Alternating Tap</h3>
+<p class="text-sm text-slate-500 mb-2">Target: Core Stability</p>
+<div class="flex gap-3">
+<span class="text-xs font-semibold bg-white/50 dark:bg-background-dark px-2 py-0.5 rounded">3 Sets</span>
+<span class="text-xs font-semibold bg-white/50 dark:bg-background-dark px-2 py-0.5 rounded">45 Sec</span>
+</div>
+</div>
+</div>
+<button class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-sm">play_arrow</span>
+                            Start Set
+                        </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Segment: Cooldown -->
+<section class="mb-12">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-lg font-bold flex items-center gap-2">
+                    Cooldown <span class="text-sm font-normal text-slate-500">(10 mins)</span>
+</h2>
+</div>
+<div class="bg-sand dark:bg-primary/5 rounded-2xl overflow-hidden divide-y divide-primary/5">
+<div class="flex items-center gap-4 p-4">
+<div class="w-10 h-10 rounded-lg bg-white dark:bg-background-dark flex items-center justify-center text-primary dark:text-sage">
+<span class="material-symbols-outlined">self_improvement</span>
+</div>
+<div class="flex-1">
+<p class="font-medium">Child's Pose</p>
+<p class="text-xs text-slate-500">2 minutes</p>
+</div>
+</div>
+<div class="flex items-center gap-4 p-4">
+<div class="w-10 h-10 rounded-lg bg-white dark:bg-background-dark flex items-center justify-center text-primary dark:text-sage">
+<span class="material-symbols-outlined">airline_seat_flat</span>
+</div>
+<div class="flex-1">
+<p class="font-medium">Hamstring Stretch (L/R)</p>
+<p class="text-xs text-slate-500">4 minutes total</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Finish Session Button -->
+<div class="fixed bottom-6 left-4 right-4 max-w-2xl mx-auto">
+<button class="w-full bg-primary text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 flex items-center justify-center gap-3">
+<span class="material-symbols-outlined">check_circle</span>
+                Complete Workout
+            </button>
+</div>
+</main>
+</body></html>

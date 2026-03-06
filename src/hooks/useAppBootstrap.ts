@@ -9,12 +9,14 @@ import { initSentry } from "@/services/telemetry/sentry";
 import { useAppStore } from "@/store/appStore";
 import { useAuthStore } from "@/store/authStore";
 import { storageKeys, type CyclePhase } from "@/utils/constants";
+import { env } from "@/utils/env";
 
 let sentryInitialized = false;
 
 export function useAppBootstrap(): void {
   const setSession = useAuthStore((state) => state.setSession);
   const setLoading = useAuthStore((state) => state.setLoading);
+  const setDevSkipLogin = useAuthStore((state) => state.setDevSkipLogin);
   const setPhaseOverride = useAppStore((state) => state.setPhaseOverride);
   const phaseOverride = useAppStore((state) => state.phaseOverride);
 
@@ -22,6 +24,11 @@ export function useAppBootstrap(): void {
     if (!sentryInitialized) {
       initSentry();
       sentryInitialized = true;
+    }
+
+    if (env.demoMode) {
+      setDevSkipLogin(true);
+      return;
     }
 
     void syncOfflineQueue();
@@ -59,7 +66,7 @@ export function useAppBootstrap(): void {
     return () => {
       subscription.unsubscribe();
     };
-  }, [setLoading, setSession]);
+  }, [setDevSkipLogin, setLoading, setSession]);
 
   useEffect(() => {
     async function hydratePhaseOverride(): Promise<void> {

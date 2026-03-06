@@ -1,11 +1,13 @@
-﻿import { Image, StyleSheet, View } from "react-native";
+import { useMemo } from "react";
+import { Image, StyleSheet, View } from "react-native";
 
 import { AppButton } from "@/components/AppButton";
 import { AppCard } from "@/components/AppCard";
 import { AppText } from "@/components/AppText";
 import { ScreenContainer } from "@/components/ScreenContainer";
-import { listRevenueCatPackages, purchasePremiumPackage } from "@/services/revenuecat/revenueCatService";
-import { colors, spacing } from "@/theme/tokens";
+import { presentCycleFitProPaywall } from "@/services/revenuecat/revenueCatService";
+import { useThemeColors } from "@/theme/ThemeProvider";
+import { spacing, type ThemeColors } from "@/theme/tokens";
 
 const heroUri =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuDAVl20wsFyOKW4WdQEh5PN_0YagD6GPnfVlIzxUmiMHqCqC9I_qyYfeAuSn5TpwAppsnWDvuuCZuUeBuirGqy5IwifNZxgcckXLYIWUVgCDHQxFhN1rVeRvWr3Fc6JI4wFmYLRqmAIBY0w8ihOhmAR5wg6_HzPc-I-4tOqYeXNRj_h5FCmAJVXN3H8vsdLQVCoKJUHsCy9J0B5QdX2cfATxVxuiIG_0WJGop1uKofXDolKR1LVx0zJBQ1W_GszJ_rtfUZkN9BBnNE";
@@ -17,6 +19,9 @@ const benefits = [
 ] as const;
 
 export function PremiumUpsellScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
       <AppCard style={styles.card}>
@@ -64,12 +69,9 @@ export function PremiumUpsellScreen() {
           </View>
 
           <AppButton
-            label="Start 7-day free trial"
-            onPress={async () => {
-              const packages = await listRevenueCatPackages();
-              if (packages[0]) {
-                await purchasePremiumPackage(packages[0]);
-              }
+            label="View CycleFit+ Pro plans"
+            onPress={() => {
+              void presentCycleFitProPaywall();
             }}
           />
           <AppButton label="Skip for now" variant="ghost" />
@@ -83,79 +85,80 @@ export function PremiumUpsellScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  content: {
-    justifyContent: "center",
-    flexGrow: 1
-  },
-  card: {
-    padding: 0,
-    overflow: "hidden"
-  },
-  heroWrap: {
-    position: "relative"
-  },
-  hero: {
-    width: "100%",
-    height: 220
-  },
-  badge: {
-    position: "absolute",
-    top: spacing.lg,
-    left: spacing.lg,
-    backgroundColor: colors.primarySoft,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6
-  },
-  badgeText: {
-    color: colors.surface
-  },
-  body: {
-    padding: spacing.xxl,
-    gap: spacing.lg
-  },
-  title: {
-    textAlign: "center"
-  },
-  subtitle: {
-    textAlign: "center"
-  },
-  benefits: {
-    gap: spacing.md
-  },
-  benefitRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm
-  },
-  check: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#E5EEEA",
-    borderWidth: 2,
-    borderColor: colors.sage
-  },
-  priceCard: {
-    backgroundColor: "#F0F5F3",
-    borderRadius: 12,
-    padding: spacing.lg,
-    gap: spacing.xs
-  },
-  priceTop: {
-    flexDirection: "row",
-    justifyContent: "space-between"
-  },
-  priceLabel: {
-    color: colors.primarySoft
-  },
-  priceRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: spacing.sm
-  },
-  footnote: {
-    textAlign: "center"
-  }
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    content: {
+      justifyContent: "center",
+      flexGrow: 1
+    },
+    card: {
+      padding: 0,
+      overflow: "hidden"
+    },
+    heroWrap: {
+      position: "relative"
+    },
+    hero: {
+      width: "100%",
+      height: 220
+    },
+    badge: {
+      position: "absolute",
+      top: spacing.lg,
+      left: spacing.lg,
+      backgroundColor: colors.primarySoft,
+      borderRadius: 999,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 6
+    },
+    badgeText: {
+      color: colors.surface
+    },
+    body: {
+      padding: spacing.xxl,
+      gap: spacing.lg
+    },
+    title: {
+      textAlign: "center"
+    },
+    subtitle: {
+      textAlign: "center"
+    },
+    benefits: {
+      gap: spacing.md
+    },
+    benefitRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm
+    },
+    check: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: 2,
+      borderColor: colors.sage
+    },
+    priceCard: {
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: 12,
+      padding: spacing.lg,
+      gap: spacing.xs
+    },
+    priceTop: {
+      flexDirection: "row",
+      justifyContent: "space-between"
+    },
+    priceLabel: {
+      color: colors.primarySoft
+    },
+    priceRow: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      gap: spacing.sm
+    },
+    footnote: {
+      textAlign: "center"
+    }
+  });

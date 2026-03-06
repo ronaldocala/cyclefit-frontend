@@ -1,11 +1,32 @@
-﻿import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import type { RootStackParamList } from "@/navigation/types";
 import { saveSessionOfflineFirst } from "@/services/sync/offlineQueue";
 import { trackEvent } from "@/services/telemetry/analytics";
+import { useAppStore } from "@/store/appStore";
 
 export function useWorkoutSession() {
-  const [startedAtIso, setStartedAtIso] = useState<string | null>(null);
+  const activeWorkout = useAppStore((state) => state.activeWorkout);
+  const startWorkoutSession = useAppStore((state) => state.startWorkoutSession);
+  const clearWorkoutSession = useAppStore((state) => state.clearWorkoutSession);
+  const startedAtIso = activeWorkout?.startedAtIso ?? null;
+
+  const [tick, setTick] = useState(0);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!startedAtIso) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setTick((value) => value + 1);
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [startedAtIso]);
 
   const durationSeconds = useMemo(() => {
     if (!startedAtIso) {
@@ -13,12 +34,26 @@ export function useWorkoutSession() {
     }
 
     return Math.max(0, Math.round((Date.now() - new Date(startedAtIso).getTime()) / 1000));
-  }, [startedAtIso]);
+  }, [startedAtIso, tick]);
 
-  function startSession(): void {
+  function startSession(input: { sourceType: RootStackParamList["WorkoutSession"]["sourceType"]; sourceId?: string }): void {
+    const hasMatchingActiveSession =
+      activeWorkout &&
+      activeWorkout.sourceType === input.sourceType &&
+      activeWorkout.sourceId === input.sourceId &&
+      activeWorkout.startedAtIso;
+
+    if (hasMatchingActiveSession) {
+      return;
+    }
+
     const now = new Date().toISOString();
-    setStartedAtIso(now);
-    trackEvent("workout_started", { startedAtIso: now });
+    startWorkoutSession({
+      sourceType: input.sourceType,
+      sourceId: input.sourceId,
+      startedAtIso: now
+    });
+    trackEvent("workout_started", { startedAtIso: now, sourceType: input.sourceType, sourceId: input.sourceId });
   }
 
   async function completeSession(input: {
@@ -53,7 +88,8 @@ export function useWorkoutSession() {
     });
 
     setSaving(false);
-    setStartedAtIso(null);
+    clearWorkoutSession();
+    setTick(0);
 
     return result;
   }

@@ -4,6 +4,7 @@ import { createCompletedSession, type SaveSessionInput } from "@/services/supaba
 import { asyncStorageService } from "@/services/storage/asyncStorage";
 import { logger } from "@/services/telemetry/logger";
 import { storageKeys } from "@/utils/constants";
+import { isDemoModeEnabled } from "@/utils/demoMode";
 
 type SessionQueueItem = {
   id: string;
@@ -32,6 +33,10 @@ export async function enqueueCompletedSession(payload: SaveSessionInput): Promis
 }
 
 export async function saveSessionOfflineFirst(payload: SaveSessionInput): Promise<"saved" | "queued"> {
+  if (isDemoModeEnabled()) {
+    return "saved";
+  }
+
   const netState = await NetInfo.fetch();
   if (!netState.isConnected) {
     await enqueueCompletedSession(payload);
@@ -48,6 +53,10 @@ export async function saveSessionOfflineFirst(payload: SaveSessionInput): Promis
 }
 
 export async function syncOfflineQueue(): Promise<void> {
+  if (isDemoModeEnabled()) {
+    return;
+  }
+
   const netState = await NetInfo.fetch();
   if (!netState.isConnected) {
     return;
