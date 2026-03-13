@@ -1,14 +1,13 @@
-﻿import { useEffect } from "react";
+import { useEffect } from "react";
 
 import { configureRevenueCat } from "@/services/revenuecat/revenueCatService";
-import { asyncStorageService } from "@/services/storage/asyncStorage";
 import { supabase } from "@/services/supabase/client";
+import { syncCycleSettings } from "@/services/supabase/cycleService";
+import { syncDailyProgressLogs } from "@/services/supabase/dailyProgressLogService";
 import { syncOfflineQueue } from "@/services/sync/offlineQueue";
 import { logger } from "@/services/telemetry/logger";
 import { initSentry } from "@/services/telemetry/sentry";
-import { useAppStore } from "@/store/appStore";
 import { useAuthStore } from "@/store/authStore";
-import { storageKeys, type CyclePhase } from "@/utils/constants";
 import { env } from "@/utils/env";
 
 let sentryInitialized = false;
@@ -17,8 +16,6 @@ export function useAppBootstrap(): void {
   const setSession = useAuthStore((state) => state.setSession);
   const setLoading = useAuthStore((state) => state.setLoading);
   const setDevSkipLogin = useAuthStore((state) => state.setDevSkipLogin);
-  const setPhaseOverride = useAppStore((state) => state.setPhaseOverride);
-  const phaseOverride = useAppStore((state) => state.phaseOverride);
 
   useEffect(() => {
     if (!sentryInitialized) {
@@ -32,6 +29,8 @@ export function useAppBootstrap(): void {
     }
 
     void syncOfflineQueue();
+    void syncCycleSettings();
+    void syncDailyProgressLogs();
 
     async function initAuth(): Promise<void> {
       const {
@@ -42,6 +41,8 @@ export function useAppBootstrap(): void {
       setLoading(false);
 
       if (session?.user.id) {
+        void syncCycleSettings();
+        void syncDailyProgressLogs();
         await configureRevenueCat(session.user.id);
       }
     }
@@ -59,6 +60,8 @@ export function useAppBootstrap(): void {
       setSession(session);
 
       if (session?.user.id) {
+        void syncCycleSettings();
+        void syncDailyProgressLogs();
         void configureRevenueCat(session.user.id);
       }
     });
@@ -67,17 +70,4 @@ export function useAppBootstrap(): void {
       subscription.unsubscribe();
     };
   }, [setDevSkipLogin, setLoading, setSession]);
-
-  useEffect(() => {
-    async function hydratePhaseOverride(): Promise<void> {
-      const saved = await asyncStorageService.get<CyclePhase | null>(storageKeys.phaseOverride);
-      setPhaseOverride(saved ?? null);
-    }
-
-    void hydratePhaseOverride();
-  }, [setPhaseOverride]);
-
-  useEffect(() => {
-    void asyncStorageService.set(storageKeys.phaseOverride, phaseOverride);
-  }, [phaseOverride]);
 }

@@ -10,6 +10,7 @@ import { MainTabNavigator } from "@/navigation/MainTabNavigator";
 import { OnboardingNavigator } from "@/navigation/OnboardingNavigator";
 import { PremiumUpsellScreen } from "@/screens/today/PremiumUpsellScreen";
 import { WorkoutSessionScreen } from "@/screens/workout-session/WorkoutSessionScreen";
+import { getCycleSettingsState } from "@/services/supabase/cycleService";
 import { getProfile } from "@/services/supabase/profileService";
 import { useAuthStore } from "@/store/authStore";
 import { useThemeColors } from "@/theme/ThemeProvider";
@@ -48,9 +49,15 @@ export function AppNavigator() {
     enabled: Boolean(session)
   });
 
+  const cycleQuery = useQuery({
+    queryKey: ["cycleSettings"],
+    queryFn: getCycleSettingsState,
+    enabled: Boolean(session)
+  });
+
   usePremiumStatus(Boolean(session));
 
-  if (authLoading || (session && profileQuery.isLoading)) {
+  if (authLoading || (session && (profileQuery.isLoading || cycleQuery.isLoading))) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={colors.primary} />
@@ -58,8 +65,7 @@ export function AppNavigator() {
     );
   }
 
-  const needsOnboarding =
-    Boolean(session) && (!profileQuery.data?.display_name || !profileQuery.data?.goal);
+  const needsOnboarding = Boolean(session) && (!profileQuery.data?.display_name || !profileQuery.data?.goal || !cycleQuery.data?.settings);
 
   return (
     <NavigationContainer theme={navigationTheme}>

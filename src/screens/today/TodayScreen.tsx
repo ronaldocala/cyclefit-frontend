@@ -2,8 +2,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { CompositeScreenProps } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useEffect, useMemo } from "react";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Image, Modal, Pressable, StyleSheet, View } from "react-native";
 
 import { AppButton } from "@/components/AppButton";
 import { AppCard } from "@/components/AppCard";
@@ -12,12 +12,10 @@ import { PhaseRing } from "@/components/PhaseRing";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { useTodayScreen } from "@/features/today/hooks/useTodayScreen";
 import { trackEvent } from "@/services/telemetry/analytics";
-import { updateProfile } from "@/services/supabase/profileService";
 import { useAppStore } from "@/store/appStore";
 import { useThemeColors } from "@/theme/ThemeProvider";
-import { spacing, type ThemeColors } from "@/theme/tokens";
+import { radius, spacing, type ThemeColors } from "@/theme/tokens";
 import { useDemoMode } from "@/utils/demoMode";
-import { phases, type CyclePhase } from "@/utils/constants";
 
 import type { MainTabParamList, RootStackParamList } from "@/navigation/types";
 
@@ -26,8 +24,10 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<RootStackParamList>
 >;
 
+type CheckInModal = "mood" | "energy" | null;
+
 const recommendationImage =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuAvA7FPN30Jq1T-2kC_f0pGuPbtApNaoidbQ_J4Rhh-t13P8ON1T8NC5Ocqcjzv3mHcI3AAEWZ9SL6xrP1Qs0oUS5C717BI1UYV08vIeDhRJWtKMc-6aO_e4AtopR3G1qmoYsGI_Y3mZPjt-SYsCWfTS2-vdiIgO6KzCW-urTIb21ShD9Wm1oL7YJ-jb3d1B4c6rWhsIoCH4Ap717jcl0idjo3grAdmr_NuB6mf3QemocyWtq91RKLrK6TwB6Pqxs7yPUwxiVTsac";
+  require("../../../UI/today-recommendation.jpg");
 
 const welcomeTemplates = [
   "Welcome back, {name}",
@@ -36,19 +36,34 @@ const welcomeTemplates = [
   "Let us make today count, {name}"
 ] as const;
 
+const ratingOptions = [1, 2, 3, 4, 5] as const;
+
 export function TodayScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { isPremium, profile, cycleSummary, cycleSettings, recommendation, loading } = useTodayScreen();
+  const {
+    profile,
+    cycleSummary,
+    cycleSettings,
+    cycleState,
+    recommendation,
+    dailyProgressState,
+    moodLevel,
+    energyLevel,
+    setMoodLevel,
+    setEnergyLevel,
+    loading
+  } = useTodayScreen();
   const isDemoMode = useDemoMode();
   const activeWorkout = useAppStore((state) => state.activeWorkout);
-  const phaseOverride = useAppStore((state) => state.phaseOverride);
-  const setPhaseOverride = useAppStore((state) => state.setPhaseOverride);
   const displayName = useMemo(() => getFirstName(profile?.display_name), [profile?.display_name]);
   const welcomeMessage = useMemo(() => buildWelcomeMessage(displayName), [displayName]);
-  const hasActiveWorkout = Boolean(activeWorkout);
   const isActivePhaseWorkout =
     activeWorkout?.sourceType === "premium_workout" && activeWorkout?.sourceId === recommendation?.premiumWorkoutId;
+  const [activeCheckInModal, setActiveCheckInModal] = useState<CheckInModal>(null);
+  const [draftRating, setDraftRating] = useState(3);
+  const modalKind = activeCheckInModal ?? "mood";
+  const checkInSyncMessage = dailyProgressState.syncStatus === "pending" ? "Saved offline. Syncing when you're back online." : null;
 
   useEffect(() => {
     if (recommendation) {
@@ -98,12 +113,25 @@ export function TodayScreen({ navigation }: Props) {
         dayInCycle={cycleSummary.dayInCycle}
         cycleLengthDays={cycleSummary.cycleLengthDays}
         periodLengthDays={cycleSettings?.period_length_days}
-        phaseLabel={`${cycleSummary.phase[0].toUpperCase()}${cycleSummary.phase.slice(1)} Phase`}
+        phaseLabel={`${cycleSummary.phaseLabel} Phase`}
       />
 
       <AppText muted style={styles.note}>
         {cycleSummary.phaseNote}
       </AppText>
+
+      <AppCard style={styles.forecastCard}>
+        <View style={styles.rowBetween}>
+          <AppText variant="subtitle">{cycleSummary.phaseLabel} focus</AppText>
+          <AppText variant="caption" muted>
+            {cycleState?.syncStatus === "pending" ? "Offline save pending" : "In sync"}
+          </AppText>
+        </View>
+        <AppText muted>{cycleSummary.trainingFocus}</AppText>
+        <AppText variant="caption" muted>
+          Next ovulation: {cycleSummary.nextOvulationDate} - Next period: {cycleSummary.nextPeriodDate}
+        </AppText>
+      </AppCard>
 
       <AppCard>
         <View style={styles.rowBetween}>
@@ -113,15 +141,7 @@ export function TodayScreen({ navigation }: Props) {
           </AppText>
         </View>
 
-        {isPremium ? (
-          <View style={styles.premiumInlineBadge}>
-            <AppText variant="caption" style={styles.premiumInlineText}>
-              Premium
-            </AppText>
-          </View>
-        ) : null}
-
-        <Image source={{ uri: recommendationImage }} style={styles.recommendationImage} />
+        <Image source={recommendationImage} style={styles.recommendationImage} resizeMode="cover" />
 
         <View style={styles.recommendationContent}>
           <View style={styles.rowBetween}>
@@ -132,17 +152,15 @@ export function TodayScreen({ navigation }: Props) {
               </AppText>
             </View>
           </View>
-          <AppText muted>
-            {recommendation.workoutDescription}
-          </AppText>
+          <AppText muted>{recommendation.workoutDescription}</AppText>
           <AppText variant="caption" muted>
             Also try: {recommendation.alternateWorkouts.join(" | ")}
           </AppText>
         </View>
 
-        {isPremium ? (
+        <View style={styles.recommendationActions}>
           <AppButton
-            label={isActivePhaseWorkout ? "Continue Workout" : recommendation.premiumAction}
+            label="Start today's workout"
             onPress={() =>
               navigation.navigate("WorkoutSession", {
                 sourceType: "premium_workout",
@@ -150,87 +168,102 @@ export function TodayScreen({ navigation }: Props) {
                 autoStart: !isActivePhaseWorkout
               })
             }
-            rightSlot={<MaterialIcons name="play-circle-filled" color={colors.surface} size={20} />}
+            rightSlot={<MaterialIcons name="play-circle-filled" color={colors.surface} size={18} />}
+            style={[styles.recommendationActionButton, styles.recommendationPrimaryActionButton]}
           />
-        ) : (
-          <View style={styles.freeActions}>
-            <AppButton
-              label={hasActiveWorkout ? "Continue Workout" : recommendation.freeActions[0]}
-              variant="secondary"
-              onPress={() =>
-                activeWorkout
-                  ? navigation.navigate("WorkoutSession", {
-                      sourceType: activeWorkout.sourceType,
-                      sourceId: activeWorkout.sourceId
-                    })
-                  : navigation.navigate("Workouts")
-              }
-            />
-            <AppButton label={recommendation.freeActions[1]} variant="outline" onPress={() => navigation.navigate("Workouts")} />
-          </View>
-        )}
+          <AppButton
+            label="See all workouts"
+            variant="outline"
+            onPress={() => navigation.navigate("Workouts")}
+            style={[styles.recommendationActionButton, styles.recommendationSecondaryActionButton]}
+          />
+        </View>
       </AppCard>
 
-      {!isPremium ? (
-        <AppCard style={styles.upgradeCard}>
-          <View>
-            <AppText variant="bodyStrong" style={styles.upgradeTitle}>
-              Unlock Personalized Nutrition
-            </AppText>
-            <AppText variant="caption" style={styles.upgradeSubtitle}>
-              Match your meals to your cycle
-            </AppText>
-          </View>
-          <AppButton
-            label="Upgrade"
-            variant="secondary"
-            onPress={() => {
-              trackEvent("paywall_viewed", { source: "today_footer", atIso: new Date().toISOString() });
-              navigation.navigate("PremiumUpsell");
-            }}
-          />
-        </AppCard>
-      ) : (
-        <View style={styles.insightsRow}>
+      <View style={styles.insightsRow}>
+        <Pressable style={styles.checkInPressable} onPress={() => openCheckInModal("mood", moodLevel, setActiveCheckInModal, setDraftRating)}>
           <AppCard style={styles.smallInsightCard}>
-            <MaterialIcons name="restaurant" color={colors.sage} size={20} />
-            <AppText variant="overline" muted>
-              NUTRITION
+            <MaterialIcons name="mood" color={colors.primary} size={20} />
+            <AppText variant="bodyStrong">How are you feeling today?</AppText>
+            <AppText variant="caption" muted>
+              {formatCheckInSummary(moodLevel, "mood")}
             </AppText>
-            <AppText variant="bodyStrong">{recommendation.nutritionSuggestion}</AppText>
           </AppCard>
+        </Pressable>
+        <Pressable style={styles.checkInPressable} onPress={() => openCheckInModal("energy", energyLevel, setActiveCheckInModal, setDraftRating)}>
           <AppCard style={styles.smallInsightCard}>
-            <MaterialIcons name="bedtime" color={colors.sage} size={20} />
-            <AppText variant="overline" muted>
-              SLEEP GOAL
+            <MaterialIcons name="bolt" color={colors.primary} size={20} />
+            <AppText variant="bodyStrong">What's your energy level?</AppText>
+            <AppText variant="caption" muted>
+              {formatCheckInSummary(energyLevel, "energy")}
             </AppText>
-            <AppText variant="bodyStrong">{recommendation.sleepGoal}</AppText>
           </AppCard>
-        </View>
-      )}
-
-      <View style={styles.overrideSection}>
-        <AppText variant="caption" muted>
-          Manual phase override
-        </AppText>
-        <View style={styles.chipRow}>
-          <Pressable
-            style={[styles.overrideChip, phaseOverride === null ? styles.overrideChipActive : undefined]}
-            onPress={() => void handlePhaseOverride(null, setPhaseOverride, isDemoMode)}
-          >
-            <AppText variant="caption">Auto</AppText>
-          </Pressable>
-          {phases.map((phase) => (
-            <Pressable
-              key={phase}
-              style={[styles.overrideChip, phaseOverride === phase ? styles.overrideChipActive : undefined]}
-              onPress={() => void handlePhaseOverride(phase, setPhaseOverride, isDemoMode)}
-            >
-              <AppText variant="caption">{phase}</AppText>
-            </Pressable>
-          ))}
-        </View>
+        </Pressable>
       </View>
+
+      {checkInSyncMessage ? (
+        <AppText variant="caption" muted style={styles.checkInSyncText}>
+          {checkInSyncMessage}
+        </AppText>
+      ) : null}
+
+      <Modal visible={activeCheckInModal !== null} transparent animationType="fade" onRequestClose={() => setActiveCheckInModal(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setActiveCheckInModal(null)}>
+          <Pressable style={styles.modalCard} onPress={(event) => event.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderText}>
+                <AppText variant="subtitle">
+                  {activeCheckInModal === "mood" ? "How are you feeling today?" : "What's your energy level?"}
+                </AppText>
+                <AppText variant="caption" muted>
+                  Choose a level from 1 to 5.
+                </AppText>
+              </View>
+              <Pressable style={styles.modalCloseButton} onPress={() => setActiveCheckInModal(null)}>
+                <MaterialIcons name="close" color={colors.primary} size={18} />
+              </Pressable>
+            </View>
+
+            <View style={styles.ratingGrid}>
+              {ratingOptions.map((option) => {
+                const selected = draftRating === option;
+
+                return (
+                  <Pressable
+                    key={option}
+                    style={[styles.ratingOption, selected ? styles.ratingOptionSelected : undefined]}
+                    onPress={() => setDraftRating(option)}
+                  >
+                    <AppText variant="title" style={selected ? styles.ratingOptionSelectedText : undefined}>
+                      {option}
+                    </AppText>
+                    <AppText variant="caption" muted={!selected} style={selected ? styles.ratingOptionSelectedText : undefined}>
+                      {getRatingLabel(modalKind, option)}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={styles.modalActionRow}>
+              <AppButton label="Cancel" variant="ghost" onPress={() => setActiveCheckInModal(null)} style={styles.modalActionButton} />
+              <AppButton
+                label="Save"
+                onPress={() => {
+                  if (activeCheckInModal === "mood") {
+                    setMoodLevel(draftRating);
+                  } else if (activeCheckInModal === "energy") {
+                    setEnergyLevel(draftRating);
+                  }
+
+                  setActiveCheckInModal(null);
+                }}
+                style={styles.modalActionButton}
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -251,17 +284,30 @@ function buildWelcomeMessage(displayName: string): string {
   return template.replace("{name}", displayName);
 }
 
-async function handlePhaseOverride(
-  phase: CyclePhase | null,
-  setPhaseOverride: (phase: CyclePhase | null) => void,
-  isDemoMode: boolean
-): Promise<void> {
-  setPhaseOverride(phase);
-  trackEvent("phase_override_set", { phase: phase ?? "auto", atIso: new Date().toISOString() });
+function openCheckInModal(
+  modal: Exclude<CheckInModal, null>,
+  currentValue: number | null,
+  setModal: (value: CheckInModal) => void,
+  setDraftRating: (value: number) => void
+): void {
+  setDraftRating(currentValue ?? 3);
+  setModal(modal);
+}
 
-  if (phase && !isDemoMode) {
-    await updateProfile({ last_seen_phase: phase });
+function formatCheckInSummary(value: number | null, kind: Exclude<CheckInModal, null>): string {
+  if (value === null) {
+    return "Tap to log 1-5";
   }
+
+  return `${value}/5 - ${getRatingLabel(kind, value)}`;
+}
+
+function getRatingLabel(kind: Exclude<CheckInModal, null>, value: number): string {
+  if (kind === "mood") {
+    return ["Very low", "Low", "Okay", "Good", "Great"][value - 1] ?? "";
+  }
+
+  return ["Drained", "Low", "Steady", "High", "Ready"][value - 1] ?? "";
 }
 
 const createStyles = (colors: ThemeColors) =>
@@ -291,26 +337,20 @@ const createStyles = (colors: ThemeColors) =>
     note: {
       textAlign: "center"
     },
+    forecastCard: {
+      gap: spacing.xs,
+      backgroundColor: colors.surfaceMuted
+    },
     rowBetween: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between"
     },
-    premiumInlineBadge: {
-      alignSelf: "flex-start",
-      backgroundColor: colors.surfaceMuted,
-      borderRadius: 999,
-      paddingVertical: 4,
-      paddingHorizontal: 10,
-      marginTop: 8
-    },
-    premiumInlineText: {
-      color: colors.primary
-    },
     recommendationImage: {
       width: "100%",
       height: 180,
       borderRadius: 12,
+      backgroundColor: colors.surfaceMuted,
       marginTop: 14,
       marginBottom: 14
     },
@@ -327,48 +367,99 @@ const createStyles = (colors: ThemeColors) =>
     durationText: {
       color: colors.primary
     },
-    freeActions: {
-      gap: spacing.sm
-    },
-    upgradeCard: {
-      backgroundColor: colors.primary,
+    recommendationActions: {
       flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between"
+      gap: spacing.sm,
+      alignItems: "stretch"
     },
-    upgradeTitle: {
-      color: colors.surface
+    recommendationActionButton: {
+      minHeight: 58,
+      paddingHorizontal: spacing.sm
     },
-    upgradeSubtitle: {
-      color: colors.sage
+    recommendationPrimaryActionButton: {
+      flex: 1.18
+    },
+    recommendationSecondaryActionButton: {
+      flex: 0.92
     },
     insightsRow: {
       flexDirection: "row",
       gap: spacing.sm
     },
+    checkInPressable: {
+      flex: 1
+    },
     smallInsightCard: {
       flex: 1,
-      gap: 6,
+      minHeight: 132,
+      gap: spacing.xs,
       backgroundColor: colors.surfaceMuted
     },
-    overrideSection: {
-      gap: spacing.sm
+    checkInSyncText: {
+      marginTop: -8
     },
-    chipRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: spacing.sm
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(15,23,42,0.16)",
+      justifyContent: "center",
+      padding: spacing.xl
     },
-    overrideChip: {
+    modalCard: {
+      backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 999,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      backgroundColor: colors.surface
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      gap: spacing.md
     },
-    overrideChipActive: {
-      borderColor: colors.sage,
-      backgroundColor: colors.sage
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: spacing.md
+    },
+    modalHeaderText: {
+      flex: 1,
+      gap: 2
+    },
+    modalCloseButton: {
+      width: 34,
+      height: 34,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.full,
+      backgroundColor: colors.surfaceMuted,
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    ratingGrid: {
+      flexDirection: "row",
+      gap: spacing.sm
+    },
+    ratingOption: {
+      flex: 1,
+      minHeight: 92,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      backgroundColor: colors.surfaceMuted,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.xs,
+      paddingHorizontal: spacing.xs
+    },
+    ratingOptionSelected: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary
+    },
+    ratingOptionSelectedText: {
+      color: colors.surface
+    },
+    modalActionRow: {
+      flexDirection: "row",
+      gap: spacing.sm
+    },
+    modalActionButton: {
+      flex: 1
     }
   });

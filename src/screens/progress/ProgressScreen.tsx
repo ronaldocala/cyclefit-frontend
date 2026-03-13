@@ -11,13 +11,23 @@ import { spacing, type ThemeColors } from "@/theme/tokens";
 export function ProgressScreen() {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { loading, stats } = useProgressScreen();
+  const { loading, stats, cycleSummary } = useProgressScreen();
 
   return (
     <ScreenContainer includeBottomInset={false} contentContainerStyle={styles.content}>
       <AppText variant="title">Progress</AppText>
 
       {loading ? <AppText>Loading progress...</AppText> : null}
+
+      {cycleSummary ? (
+        <AppCard style={styles.phaseCard}>
+          <AppText variant="subtitle">{cycleSummary.phaseLabel} phase</AppText>
+          <AppText muted>{cycleSummary.phaseNote}</AppText>
+          <AppText variant="caption" muted>
+            Next period in {cycleSummary.daysUntilNextPeriod} days. Recovery focus: {cycleSummary.recoveryFocus}
+          </AppText>
+        </AppCard>
+      ) : null}
 
       <AppCard>
         <AppText variant="subtitle">Overview</AppText>
@@ -63,6 +73,10 @@ const createStyles = (colors: ThemeColors) =>
     row: {
       flexDirection: "row",
       gap: spacing.sm
+    },
+    phaseCard: {
+      gap: spacing.xs,
+      backgroundColor: colors.surfaceMuted
     },
     metricBox: {
       flex: 1,

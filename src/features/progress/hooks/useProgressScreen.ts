@@ -2,12 +2,16 @@ import { useMemo } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 
+import { useCyclePhase } from "@/features/cycle/hooks/useCyclePhase";
 import { demoWorkoutSessions } from "@/services/demo/demoData";
+import { getCycleSettingsState } from "@/services/supabase/cycleService";
 import { listWorkoutSessions } from "@/services/supabase/sessionsService";
+import { useDemoStore } from "@/store/demoStore";
 import { useDemoMode } from "@/utils/demoMode";
 
 export function useProgressScreen() {
   const isDemoMode = useDemoMode();
+  const demoCycleSettings = useDemoStore((state) => state.cycleState.settings);
 
   const sessionsQuery = useQuery({
     queryKey: ["workoutSessions"],
@@ -15,7 +19,15 @@ export function useProgressScreen() {
     enabled: !isDemoMode
   });
 
+  const cycleQuery = useQuery({
+    queryKey: ["cycleSettings"],
+    queryFn: getCycleSettingsState,
+    enabled: !isDemoMode
+  });
+
   const sessions = isDemoMode ? demoWorkoutSessions : (sessionsQuery.data ?? []);
+  const cycleSettings = isDemoMode ? demoCycleSettings : (cycleQuery.data?.settings ?? null);
+  const cycleSummary = useCyclePhase(cycleSettings);
 
   const stats = useMemo(() => {
     const completed = sessions.filter((session) => session.status === "completed");
@@ -30,7 +42,8 @@ export function useProgressScreen() {
   }, [sessions]);
 
   return {
-    loading: !isDemoMode && sessionsQuery.isLoading,
+    loading: !isDemoMode && (sessionsQuery.isLoading || cycleQuery.isLoading),
+    cycleSummary,
     sessions,
     stats
   };

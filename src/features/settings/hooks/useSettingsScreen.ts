@@ -1,23 +1,31 @@
-import { useState } from "react";
-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { Profile } from "@/api/types";
-import { demoCycleSettings, demoProfile } from "@/services/demo/demoData";
+import type { CycleSettingsState, Profile } from "@/api/types";
 import { openCustomerCenter, restorePurchases } from "@/services/revenuecat/revenueCatService";
-import { getCycleSettings, saveCycleSettings } from "@/services/supabase/cycleService";
+import { getCycleSettingsState, saveCycleSettings } from "@/services/supabase/cycleService";
 import type { SaveCycleSettingsInput } from "@/services/supabase/cycleService";
 import { deleteAccount } from "@/services/supabase/premiumService";
 import { getProfile, updateProfile } from "@/services/supabase/profileService";
+import { useDemoStore } from "@/store/demoStore";
 import { useDemoMode } from "@/utils/demoMode";
 
 type UpdateProfileInput = Parameters<typeof updateProfile>[0];
 
+function createEmptyCycleState(): CycleSettingsState {
+  return {
+    settings: null,
+    syncStatus: "synced",
+    lastSyncedAt: null
+  };
+}
+
 export function useSettingsScreen() {
   const queryClient = useQueryClient();
   const isDemoMode = useDemoMode();
-  const [demoProfileState, setDemoProfileState] = useState<Profile>(demoProfile);
-  const [demoCycleState, setDemoCycleState] = useState(demoCycleSettings);
+  const demoProfileState = useDemoStore((state) => state.profile);
+  const demoCycleState = useDemoStore((state) => state.cycleState);
+  const setDemoProfile = useDemoStore((state) => state.setProfile);
+  const setDemoCycleState = useDemoStore((state) => state.setCycleState);
 
   const profileQuery = useQuery({
     queryKey: ["profile"],
@@ -27,21 +35,21 @@ export function useSettingsScreen() {
 
   const cycleQuery = useQuery({
     queryKey: ["cycleSettings"],
-    queryFn: getCycleSettings,
+    queryFn: getCycleSettingsState,
     enabled: !isDemoMode
   });
 
   const updateProfileMutation = useMutation({
     mutationFn: updateProfile,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+    onSuccess: (profile) => {
+      queryClient.setQueryData(["profile"], profile);
     }
   });
 
   const updateCycleMutation = useMutation({
     mutationFn: saveCycleSettings,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["cycleSettings"] });
+    onSuccess: (cycleState) => {
+      queryClient.setQueryData(["cycleSettings"], cycleState);
     }
   });
 
@@ -62,27 +70,15 @@ export function useSettingsScreen() {
       return updateProfileMutation.mutateAsync(input);
     }
 
-    const nextProfile: Profile = {
-      ...demoProfileState,
-      ...input,
-      updated_at: new Date().toISOString()
-    };
-    setDemoProfileState(nextProfile);
-    return nextProfile;
+    return setDemoProfile(input);
   }
 
-  async function updateCycleSettingsAction(input: SaveCycleSettingsInput) {
+  async function updateCycleSettingsAction(input: SaveCycleSettingsInput): Promise<CycleSettingsState> {
     if (!isDemoMode) {
       return updateCycleMutation.mutateAsync(input);
     }
 
-    const nextCycleSettings = {
-      ...demoCycleState,
-      ...input,
-      updated_at: new Date().toISOString()
-    };
-    setDemoCycleState(nextCycleSettings);
-    return nextCycleSettings;
+    return setDemoCycleState(input);
   }
 
   async function restorePurchasesAction(): Promise<boolean> {
@@ -107,15 +103,20 @@ export function useSettingsScreen() {
     }
   }
 
+  const cycleState = isDemoMode ? demoCycleState : (cycleQuery.data ?? createEmptyCycleState());
+
   return {
-    profile: isDemoMode ? demoProfileState : profileQuery.data,
-    cycleSettings: isDemoMode ? demoCycleState : cycleQuery.data,
+    profile: isDemoMode ? demoProfileState : (profileQuery.data ?? null),
+    cycleState,
+    cycleSettings: cycleState.settings,
     loading: !isDemoMode && (profileQuery.isLoading || cycleQuery.isLoading),
     updateProfile: updateProfileAction,
     updateCycleSettings: updateCycleSettingsAction,
     restorePurchases: restorePurchasesAction,
     openCustomerCenter: openCustomerCenterAction,
     deleteAccount: deleteAccountAction,
+    savingProfile: !isDemoMode && updateProfileMutation.isPending,
+    savingCycleSettings: !isDemoMode && updateCycleMutation.isPending,
     restoring: !isDemoMode && restoreMutation.isPending,
     openingCustomerCenter: !isDemoMode && customerCenterMutation.isPending,
     deletingAccount: !isDemoMode && accountDeleteMutation.isPending

@@ -22,6 +22,31 @@ export type CycleSettings = {
   updated_at: string;
 };
 
+export type CycleSettingsSyncStatus = "synced" | "pending";
+
+export type CycleSettingsState = {
+  settings: CycleSettings | null;
+  syncStatus: CycleSettingsSyncStatus;
+  lastSyncedAt: string | null;
+};
+
+export type DailyProgressLog = {
+  user_id: string;
+  log_date: string;
+  mood_level: number | null;
+  energy_level: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DailyProgressLogSyncStatus = "synced" | "pending";
+
+export type DailyProgressLogState = {
+  entry: DailyProgressLog | null;
+  syncStatus: DailyProgressLogSyncStatus;
+  lastSyncedAt: string | null;
+};
+
 export type Exercise = {
   id: number;
   slug: string;
