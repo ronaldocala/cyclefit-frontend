@@ -20,7 +20,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 function iconForRoute(name: keyof MainTabParamList): keyof typeof MaterialIcons.glyphMap {
   switch (name) {
     case "Today":
-      return "calendar-today";
+      return "home";
     case "Workouts":
       return "fitness-center";
     case "Progress":
@@ -118,7 +118,7 @@ export function MainTabNavigator() {
         tabBarIcon: ({ color, size }) => <MaterialIcons name={iconForRoute(route.name)} color={color} size={size} />
       })}
     >
-      <Tab.Screen name="Today" component={TodayScreen} />
+      <Tab.Screen name="Today" component={TodayScreen} options={{ tabBarLabel: "Home" }} />
       <Tab.Screen name="Progress" component={ProgressScreen} />
       <Tab.Screen name="Workouts" component={WorkoutsScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />

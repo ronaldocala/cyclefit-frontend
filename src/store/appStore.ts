@@ -2,7 +2,6 @@ import { create } from "zustand";
 
 import type { RootStackParamList } from "@/navigation/types";
 import type { PremiumState } from "@/services/revenuecat/revenueCatService";
-import type { CyclePhase } from "@/utils/constants";
 
 type WorkoutSourceType = RootStackParamList["WorkoutSession"]["sourceType"];
 
@@ -38,11 +37,9 @@ const defaultWorkoutDraft: WorkoutSessionDraft = {
 };
 
 type AppStoreState = {
-  phaseOverride: CyclePhase | null;
   isPremium: boolean;
   premiumState: PremiumState;
   activeWorkout: ActiveWorkout | null;
-  setPhaseOverride: (phase: CyclePhase | null) => void;
   setPremium: (isPremium: boolean, premiumState: PremiumState) => void;
   startWorkoutSession: (input: { sourceType: WorkoutSourceType; sourceId?: string; startedAtIso: string }) => void;
   updateWorkoutDraft: (patch: Partial<WorkoutSessionDraft>) => void;
@@ -50,11 +47,9 @@ type AppStoreState = {
 };
 
 export const useAppStore = create<AppStoreState>((set) => ({
-  phaseOverride: null,
   isPremium: false,
   premiumState: "unknown",
   activeWorkout: null,
-  setPhaseOverride: (phaseOverride) => set({ phaseOverride }),
   setPremium: (isPremium, premiumState) => set({ isPremium, premiumState }),
   startWorkoutSession: ({ sourceType, sourceId, startedAtIso }) =>
     set((state) => {

@@ -9,9 +9,12 @@ export function useCycleSetupScreen() {
 
   const mutation = useMutation({
     mutationFn: async (payload: SaveCycleSettingsInput) => saveCycleSettings(payload),
-    onSuccess: () => {
-      trackEvent("cycle_settings_saved", { atIso: new Date().toISOString() });
-      void queryClient.invalidateQueries({ queryKey: ["cycleSettings"] });
+    onSuccess: (cycleState) => {
+      trackEvent("cycle_settings_saved", {
+        atIso: new Date().toISOString(),
+        syncStatus: cycleState.syncStatus
+      });
+      queryClient.setQueryData(["cycleSettings"], cycleState);
     }
   });
 

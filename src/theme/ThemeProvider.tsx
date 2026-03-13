@@ -3,10 +3,9 @@ import { createContext, useContext, useMemo, type PropsWithChildren } from "reac
 import { useQuery } from "@tanstack/react-query";
 
 import { computeCycleSummary } from "@/features/cycle/cycleCalculator";
-import { demoCycleSettings } from "@/services/demo/demoData";
-import { getCycleSettings } from "@/services/supabase/cycleService";
-import { useAppStore } from "@/store/appStore";
+import { getCycleSettingsState } from "@/services/supabase/cycleService";
 import { useAuthStore } from "@/store/authStore";
+import { useDemoStore } from "@/store/demoStore";
 import { useDemoMode } from "@/utils/demoMode";
 import { getColorsForPhase, defaultColors, type ThemeColors } from "@/theme/tokens";
 
@@ -25,27 +24,23 @@ const ThemeContext = createContext<ThemeContextValue>({
 export function ThemeProvider({ children }: PropsWithChildren) {
   const isDemoMode = useDemoMode();
   const session = useAuthStore((state) => state.session);
-  const phaseOverride = useAppStore((state) => state.phaseOverride);
+  const demoCycleSettings = useDemoStore((state) => state.cycleState.settings);
 
   const cycleQuery = useQuery({
     queryKey: ["cycleSettings"],
-    queryFn: getCycleSettings,
+    queryFn: getCycleSettingsState,
     enabled: !isDemoMode && Boolean(session)
   });
 
-  const cycleSettings = isDemoMode ? demoCycleSettings : (cycleQuery.data ?? null);
+  const cycleSettings = isDemoMode ? demoCycleSettings : (cycleQuery.data?.settings ?? null);
 
   const phase = useMemo(() => {
-    if (phaseOverride) {
-      return phaseOverride;
-    }
-
     if (!cycleSettings) {
       return null;
     }
 
     return computeCycleSummary(cycleSettings).phase;
-  }, [cycleSettings, phaseOverride]);
+  }, [cycleSettings]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({

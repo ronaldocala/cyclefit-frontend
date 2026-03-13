@@ -1,12 +1,13 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Image, LayoutAnimation, Modal, Platform, Pressable, StyleSheet, TextInput, UIManager, View } from "react-native";
-import Svg, { Circle, Line, Rect } from "react-native-svg";
+import { Alert, LayoutAnimation, Modal, Platform, Pressable, StyleSheet, TextInput, UIManager, View } from "react-native";
+import Svg, { Circle, Ellipse, Line, Rect } from "react-native-svg";
 
 import { AppButton } from "@/components/AppButton";
 import { AppText } from "@/components/AppText";
 import { ScreenContainer } from "@/components/ScreenContainer";
+import { getReferenceWorkoutById, type ReferenceWorkout, type ReferenceWorkoutEntry } from "@/features/workouts/data/referenceWorkoutsCatalog";
 import { useWorkoutSession } from "@/features/workout-session/hooks/useWorkoutSession";
 import { asyncStorageService } from "@/services/storage/asyncStorage";
 import { useAppStore, type ActiveWorkout, type WorkoutSessionDraft } from "@/store/appStore";
@@ -36,6 +37,7 @@ type SimpleExercise = {
   details: string;
   exampleSchematic: ExerciseSchematicType;
   icon: IconName;
+  exampleDetail?: string | null;
 };
 
 type MainSet = {
@@ -45,8 +47,11 @@ type MainSet = {
   sets: number;
   reps: string;
   loggingMode: SetLoggingMode;
+  timeUnit?: "mins" | "seconds";
   exampleSchematic: ExerciseSchematicType;
   icon: IconName;
+  exampleDetail?: string | null;
+  hideSetCount?: boolean;
 };
 
 type SetLogEntry = {
@@ -67,7 +72,8 @@ type LastExerciseLogMap = Record<string, Array<LastExerciseLog | null>>;
 
 type ExerciseExample = {
   name: string;
-  imageUri: string;
+  schematicType: ExerciseSchematicType;
+  detail?: string | null;
 };
 
 type PremiumWorkoutMeta = {
@@ -168,6 +174,7 @@ const mainSets: MainSet[] = [
     sets: 3,
     reps: "45 Sec",
     loggingMode: "seconds",
+    timeUnit: "seconds",
     exampleSchematic: "plank_tap",
     icon: "self-improvement"
   }
@@ -241,18 +248,6 @@ const DEFAULT_WORKOUT_DRAFT: WorkoutSessionDraft = {
   reps: "",
   expandedSetIds: {},
   setLogsByExercise: {}
-};
-
-const exerciseExampleImageByType: Record<ExerciseSchematicType, string> = {
-  squat: "https://liftmanual.com/wp-content/uploads/2023/04/dumbbell-goblet-squat.jpg",
-  shoulder_press: "https://liftmanual.com/wp-content/uploads/2023/04/dumbbell-push-press.jpg",
-  row: "https://liftmanual.com/wp-content/uploads/2023/04/dumbbell-bent-over-row.jpg",
-  chest_press: "https://liftmanual.com/wp-content/uploads/2023/04/dumbbell-bench-press.jpg",
-  plank_tap: "https://liftmanual.com/wp-content/uploads/2023/04/front-plank-with-arm-lift.jpg",
-  mobility: "https://liftmanual.com/wp-content/uploads/2023/04/arm-circles.jpg",
-  lunge: "https://liftmanual.com/wp-content/uploads/2023/04/side-lunge.jpg",
-  child_pose: "https://liftmanual.com/wp-content/uploads/2023/04/child-pose.jpg",
-  hamstring_stretch: "https://liftmanual.com/wp-content/uploads/2023/04/hamstring-stretch.jpg"
 };
 
 function toExerciseKey(exerciseName: string): string {
@@ -337,6 +332,222 @@ function formatClock(totalSeconds: number): string {
   return `${minutes}:${seconds}`;
 }
 
+function formatReferencePhaseLabel(phase: string): string {
+  if (!phase) {
+    return "Cycle-Aware Session";
+  }
+
+  return `${phase.charAt(0).toUpperCase()}${phase.slice(1)} Phase`;
+}
+
+function formatReferenceIntensityLabel(intensity: "low" | "moderate" | "high"): string {
+  if (intensity === "low") {
+    return "Low";
+  }
+
+  if (intensity === "high") {
+    return "High";
+  }
+
+  return "Moderate";
+}
+
+function formatReferenceCategoryLabel(category: string): string {
+  if (!category) {
+    return "Guided Session";
+  }
+
+  return `${category.charAt(0).toUpperCase()}${category.slice(1)}`;
+}
+
+function summarizeExampleDetail(detail: string | null | undefined): string {
+  if (!detail) {
+    return "Guided step";
+  }
+
+  const firstSentence = detail.split(/(?<=[.!?])\s+/)[0] ?? detail;
+  return firstSentence.length > 72 ? `${firstSentence.slice(0, 69)}...` : firstSentence;
+}
+
+function trimExercisePrefix(value: string): string {
+  return value.replace(/^\d+\s*[\.\)]\s*/, "").trim();
+}
+
+function parseReferenceEntryLabel(title: string): { name: string; meta: string | null } {
+  const normalized = trimExercisePrefix(title).replace(/\s+/g, " ").trim();
+  const pipeParts = normalized.split(/\s+\|\s+/);
+  if (pipeParts.length > 1) {
+    return {
+      name: pipeParts[0]?.trim() ?? normalized,
+      meta: pipeParts.slice(1).join(" | ").trim()
+    };
+  }
+
+  const dashMatch = normalized.match(/^(.*?)(?:\s+-\s+)(\d+(?:\s*(?:to|-)\s*\d+)?\s*(?:sec|secs|seconds|min|mins|minutes)\b.*)$/i);
+  if (dashMatch) {
+    return {
+      name: dashMatch[1]?.trim() ?? normalized,
+      meta: dashMatch[2]?.trim() ?? null
+    };
+  }
+
+  return {
+    name: normalized,
+    meta: null
+  };
+}
+
+function inferReferencePresentation(
+  workout: Pick<ReferenceWorkout, "category" | "environment">,
+  title: string
+): { icon: IconName; exampleSchematic: ExerciseSchematicType; target: string } {
+  const haystack = `${workout.category} ${title}`.toLowerCase();
+
+  if (/(squat|leg press|leg curl|glute|quad|hamstring|lower body)/.test(haystack)) {
+    return { icon: "fitness-center", exampleSchematic: "squat", target: "Target: Lower Body" };
+  }
+
+  if (/(chest|press|tricep|push-up|pushdown)/.test(haystack)) {
+    return { icon: "front-hand", exampleSchematic: "chest_press", target: "Target: Push Strength" };
+  }
+
+  if (/(row|pulldown|pull-up|back)/.test(haystack)) {
+    return { icon: "sports-gymnastics", exampleSchematic: "row", target: "Target: Back and Pulling" };
+  }
+
+  if (/(shoulder|arm swing|arm circle|upper body)/.test(haystack)) {
+    return { icon: "sports-handball", exampleSchematic: "shoulder_press", target: "Target: Upper Body" };
+  }
+
+  if (/(plank|dead bug|core)/.test(haystack)) {
+    return { icon: "self-improvement", exampleSchematic: "plank_tap", target: "Target: Core Stability" };
+  }
+
+  if (/(rowing machine|rower)/.test(haystack)) {
+    return { icon: "directions-run", exampleSchematic: "row", target: "Target: Cardio Endurance" };
+  }
+
+  if (/(lunge|walk|treadmill|elliptical|cardio|interval|bike)/.test(haystack)) {
+    return { icon: "directions-run", exampleSchematic: "lunge", target: "Target: Cardio Endurance" };
+  }
+
+  if (/(yoga|child|savasana|nidra)/.test(haystack)) {
+    return { icon: "self-improvement", exampleSchematic: "child_pose", target: "Target: Recovery and Flow" };
+  }
+
+  if (/(stretch|hamstring|fold)/.test(haystack)) {
+    return { icon: "airline-seat-flat", exampleSchematic: "hamstring_stretch", target: "Target: Flexibility" };
+  }
+
+  return { icon: "sync-alt", exampleSchematic: "mobility", target: "Target: Mobility and Control" };
+}
+
+function parseMainSetMetadata(workout: ReferenceWorkout, entry: ReferenceWorkoutEntry): {
+  sets: number;
+  reps: string;
+  loggingMode: SetLoggingMode;
+  hideSetCount: boolean;
+  timeUnit?: "mins" | "seconds";
+} {
+  const combinedText = `${entry.title} ${entry.detail ?? ""}`;
+  const roundsMatch = combinedText.match(/(\d+)\s*rounds?/i);
+  const setsMatch = combinedText.match(/(\d+)\s*sets?/i);
+  const repsMatch = combinedText.match(/(\d+)\s*reps?/i);
+  const timeMatch = combinedText.match(/(\d+(?:\s*(?:to|-)\s*\d+)?)\s*(sec|secs|seconds|min|mins|minutes)\b/i);
+  const setsValue = Number.parseInt((setsMatch?.[1] ?? roundsMatch?.[1] ?? "1"), 10);
+  const sets = Number.isFinite(setsValue) && setsValue > 0 ? setsValue : 1;
+  const normalizedTimeLabel = timeMatch
+    ? `${timeMatch[1]} ${timeMatch[2].replace("minutes", "min").replace("minute", "min").replace("seconds", "sec").replace("second", "sec")}`
+    : null;
+  const normalizedTimeUnit =
+    timeMatch && /(min|mins|minute|minutes)/i.test(timeMatch[2]) ? "mins" : timeMatch ? "seconds" : undefined;
+
+  if (repsMatch) {
+    return {
+      sets,
+      reps: `${repsMatch[1]} Reps`,
+      loggingMode: "weight_reps",
+      hideSetCount: false
+    };
+  }
+
+  if (workout.category === "strength" && setsMatch) {
+    return {
+      sets,
+      reps: normalizedTimeLabel ?? "10 Reps",
+      loggingMode: normalizedTimeLabel ? "seconds" : "weight_reps",
+      hideSetCount: Boolean(normalizedTimeLabel),
+      timeUnit: normalizedTimeUnit
+    };
+  }
+
+  if (normalizedTimeLabel) {
+    return {
+      sets: roundsMatch ? sets : 1,
+      reps: normalizedTimeLabel,
+      loggingMode: "seconds",
+      hideSetCount: true,
+      timeUnit: normalizedTimeUnit
+    };
+  }
+
+  return {
+    sets: 1,
+    reps: "Timed",
+    loggingMode: workout.category === "strength" ? "weight_reps" : "seconds",
+    hideSetCount: workout.category !== "strength",
+    timeUnit: workout.category === "strength" ? undefined : "seconds"
+  };
+}
+
+function buildReferenceSimpleExercises(workout: ReferenceWorkout, sectionId: "warmup" | "cooldown"): SimpleExercise[] {
+  const section = workout.sections.find((candidate) => candidate.id === sectionId);
+  if (!section) {
+    return [];
+  }
+
+  return section.entries.map((entry, index) => {
+    const parsed = parseReferenceEntryLabel(entry.title);
+    const presentation = inferReferencePresentation(workout, parsed.name);
+
+    return {
+      id: `${workout.id}-${sectionId}-${index}`,
+      name: parsed.name,
+      details: parsed.meta ?? summarizeExampleDetail(entry.detail),
+      exampleSchematic: presentation.exampleSchematic,
+      icon: presentation.icon,
+      exampleDetail: entry.detail
+    };
+  });
+}
+
+function buildReferenceMainSets(workout: ReferenceWorkout): MainSet[] {
+  const section = workout.sections.find((candidate) => candidate.id === "main");
+  if (!section) {
+    return [];
+  }
+
+  return section.entries.map((entry, index) => {
+    const parsed = parseReferenceEntryLabel(entry.title);
+    const presentation = inferReferencePresentation(workout, parsed.name);
+    const metadata = parseMainSetMetadata(workout, entry);
+
+    return {
+      id: `${workout.id}-main-${index}`,
+      name: parsed.name,
+      target: presentation.target,
+      sets: metadata.sets,
+      reps: metadata.reps,
+      loggingMode: metadata.loggingMode,
+      exampleSchematic: presentation.exampleSchematic,
+      icon: presentation.icon,
+      exampleDetail: entry.detail ?? parsed.meta,
+      hideSetCount: metadata.hideSetCount,
+      timeUnit: metadata.timeUnit
+    };
+  });
+}
+
 function toSetInputId(exerciseId: string, setIndex: number, field: keyof SetLogEntry): string {
   return `set:${exerciseId}:${setIndex}:${field}`;
 }
@@ -370,14 +581,42 @@ function parseSetInputId(inputId: string): { exerciseId: string; setIndex: numbe
 function ExerciseSchematic({ type }: { type: ExerciseSchematicType }) {
   const stroke = "#1F3F3E";
   const accent = "#B9D2C7";
+  const panel = "#F4EFE8";
+  const panelBorder = "#D9CEC4";
+  const skin = "#E6B691";
+  const hair = "#5B4036";
+  const top = "#C97263";
+  const leggings = "#6E8C89";
+
+  const renderBackdrop = () => <Rect x="12" y="12" width="196" height="196" rx="28" fill={panel} stroke={panelBorder} strokeWidth="2" />;
+  const renderHead = ({
+    cx,
+    cy,
+    ponytailCx,
+    ponytailCy
+  }: {
+    cx: number;
+    cy: number;
+    ponytailCx: number;
+    ponytailCy: number;
+  }) => (
+    <>
+      <Circle cx={ponytailCx} cy={ponytailCy} r="5" fill={hair} />
+      <Ellipse cx={cx - 1} cy={cy - 5} rx="10" ry="7" fill={hair} />
+      <Circle cx={cx} cy={cy} r="10" fill={skin} stroke={stroke} strokeWidth="4" />
+    </>
+  );
 
   if (type === "chest_press") {
     return (
       <Svg viewBox="0 0 220 220" width="100%" height="100%">
+        {renderBackdrop()}
         <Line x1="20" y1="170" x2="200" y2="170" stroke={stroke} strokeWidth="3" />
         <Rect x="40" y="150" width="140" height="14" rx="7" fill={accent} />
         <Rect x="64" y="92" width="92" height="8" rx="4" fill={accent} />
-        <Circle cx="72" cy="142" r="9" fill="none" stroke={stroke} strokeWidth="5" />
+        <Rect x="92" y="132" width="34" height="14" rx="7" fill={top} opacity="0.85" />
+        <Rect x="91" y="145" width="20" height="18" rx="7" fill={leggings} opacity="0.82" />
+        {renderHead({ cx: 72, cy: 142, ponytailCx: 63, ponytailCy: 139 })}
         <Line x1="81" y1="142" x2="120" y2="142" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="120" y1="142" x2="150" y2="132" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="120" y1="142" x2="150" y2="150" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
@@ -393,8 +632,11 @@ function ExerciseSchematic({ type }: { type: ExerciseSchematicType }) {
   if (type === "plank_tap") {
     return (
       <Svg viewBox="0 0 220 220" width="100%" height="100%">
+        {renderBackdrop()}
         <Line x1="20" y1="172" x2="200" y2="172" stroke={stroke} strokeWidth="3" />
-        <Circle cx="58" cy="134" r="9" fill="none" stroke={stroke} strokeWidth="5" />
+        <Rect x="84" y="138" width="44" height="12" rx="6" fill={top} opacity="0.86" />
+        <Rect x="126" y="147" width="38" height="10" rx="5" fill={leggings} opacity="0.8" />
+        {renderHead({ cx: 58, cy: 134, ponytailCx: 49, ponytailCy: 131 })}
         <Line x1="67" y1="136" x2="124" y2="146" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="124" y1="146" x2="162" y2="160" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="83" y1="140" x2="66" y2="170" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
@@ -408,8 +650,11 @@ function ExerciseSchematic({ type }: { type: ExerciseSchematicType }) {
   if (type === "child_pose") {
     return (
       <Svg viewBox="0 0 220 220" width="100%" height="100%">
+        {renderBackdrop()}
         <Line x1="20" y1="174" x2="200" y2="174" stroke={stroke} strokeWidth="3" />
-        <Circle cx="132" cy="136" r="8" fill="none" stroke={stroke} strokeWidth="5" />
+        <Rect x="88" y="136" width="40" height="12" rx="6" fill={top} opacity="0.84" />
+        <Rect x="104" y="152" width="34" height="12" rx="6" fill={leggings} opacity="0.8" />
+        {renderHead({ cx: 132, cy: 136, ponytailCx: 140, ponytailCy: 132 })}
         <Line x1="125" y1="138" x2="94" y2="142" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="94" y1="142" x2="66" y2="144" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="96" y1="142" x2="108" y2="166" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
@@ -422,8 +667,11 @@ function ExerciseSchematic({ type }: { type: ExerciseSchematicType }) {
   if (type === "hamstring_stretch") {
     return (
       <Svg viewBox="0 0 220 220" width="100%" height="100%">
+        {renderBackdrop()}
         <Line x1="20" y1="174" x2="200" y2="174" stroke={stroke} strokeWidth="3" />
-        <Circle cx="74" cy="108" r="9" fill="none" stroke={stroke} strokeWidth="5" />
+        <Rect x="90" y="128" width="30" height="12" rx="6" fill={top} opacity="0.84" />
+        <Rect x="120" y="132" width="36" height="10" rx="5" fill={leggings} opacity="0.82" />
+        {renderHead({ cx: 74, cy: 108, ponytailCx: 65, ponytailCy: 105 })}
         <Line x1="82" y1="112" x2="104" y2="136" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="104" y1="136" x2="152" y2="136" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="104" y1="136" x2="88" y2="170" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
@@ -436,8 +684,12 @@ function ExerciseSchematic({ type }: { type: ExerciseSchematicType }) {
   if (type === "mobility") {
     return (
       <Svg viewBox="0 0 220 220" width="100%" height="100%">
+        {renderBackdrop()}
         <Line x1="20" y1="174" x2="200" y2="174" stroke={stroke} strokeWidth="3" />
-        <Circle cx="110" cy="62" r="10" fill="none" stroke={stroke} strokeWidth="5" />
+        <Rect x="100" y="78" width="20" height="44" rx="10" fill={top} opacity="0.86" />
+        <Rect x="88" y="121" width="12" height="50" rx="6" fill={leggings} opacity="0.82" />
+        <Rect x="120" y="121" width="12" height="50" rx="6" fill={leggings} opacity="0.82" />
+        {renderHead({ cx: 110, cy: 62, ponytailCx: 120, ponytailCy: 60 })}
         <Line x1="110" y1="72" x2="110" y2="122" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="110" y1="88" x2="78" y2="104" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="110" y1="88" x2="148" y2="74" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
@@ -451,8 +703,12 @@ function ExerciseSchematic({ type }: { type: ExerciseSchematicType }) {
   if (type === "lunge") {
     return (
       <Svg viewBox="0 0 220 220" width="100%" height="100%">
+        {renderBackdrop()}
         <Line x1="20" y1="174" x2="200" y2="174" stroke={stroke} strokeWidth="3" />
-        <Circle cx="84" cy="62" r="10" fill="none" stroke={stroke} strokeWidth="5" />
+        <Rect x="86" y="78" width="18" height="40" rx="9" fill={top} opacity="0.86" />
+        <Rect x="84" y="117" width="12" height="55" rx="6" fill={leggings} opacity="0.82" />
+        <Rect x="118" y="141" width="12" height="32" rx="6" fill={leggings} opacity="0.82" />
+        {renderHead({ cx: 84, cy: 62, ponytailCx: 74, ponytailCy: 59 })}
         <Line x1="84" y1="72" x2="96" y2="114" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="96" y1="114" x2="122" y2="144" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="122" y1="144" x2="122" y2="172" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
@@ -465,8 +721,12 @@ function ExerciseSchematic({ type }: { type: ExerciseSchematicType }) {
   if (type === "shoulder_press") {
     return (
       <Svg viewBox="0 0 220 220" width="100%" height="100%">
+        {renderBackdrop()}
         <Line x1="20" y1="174" x2="200" y2="174" stroke={stroke} strokeWidth="3" />
-        <Circle cx="110" cy="58" r="10" fill="none" stroke={stroke} strokeWidth="5" />
+        <Rect x="99" y="76" width="22" height="42" rx="10" fill={top} opacity="0.86" />
+        <Rect x="92" y="117" width="12" height="55" rx="6" fill={leggings} opacity="0.82" />
+        <Rect x="116" y="117" width="12" height="55" rx="6" fill={leggings} opacity="0.82" />
+        {renderHead({ cx: 110, cy: 58, ponytailCx: 121, ponytailCy: 56 })}
         <Line x1="110" y1="68" x2="110" y2="118" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="110" y1="82" x2="82" y2="56" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="110" y1="82" x2="138" y2="56" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
@@ -481,8 +741,12 @@ function ExerciseSchematic({ type }: { type: ExerciseSchematicType }) {
   if (type === "row") {
     return (
       <Svg viewBox="0 0 220 220" width="100%" height="100%">
+        {renderBackdrop()}
         <Line x1="20" y1="174" x2="200" y2="174" stroke={stroke} strokeWidth="3" />
-        <Circle cx="92" cy="62" r="10" fill="none" stroke={stroke} strokeWidth="5" />
+        <Rect x="106" y="88" width="22" height="32" rx="10" fill={top} opacity="0.86" />
+        <Rect x="111" y="119" width="12" height="54" rx="6" fill={leggings} opacity="0.82" />
+        <Rect x="149" y="146" width="12" height="26" rx="6" fill={leggings} opacity="0.82" />
+        {renderHead({ cx: 92, cy: 62, ponytailCx: 82, ponytailCy: 60 })}
         <Line x1="96" y1="70" x2="126" y2="110" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="126" y1="110" x2="112" y2="172" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
         <Line x1="126" y1="110" x2="154" y2="170" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
@@ -494,8 +758,12 @@ function ExerciseSchematic({ type }: { type: ExerciseSchematicType }) {
 
   return (
     <Svg viewBox="0 0 220 220" width="100%" height="100%">
+      {renderBackdrop()}
       <Line x1="20" y1="174" x2="200" y2="174" stroke={stroke} strokeWidth="3" />
-      <Circle cx="110" cy="60" r="10" fill="none" stroke={stroke} strokeWidth="5" />
+      <Rect x="104" y="76" width="20" height="40" rx="10" fill={top} opacity="0.86" />
+      <Rect x="96" y="116" width="12" height="58" rx="6" fill={leggings} opacity="0.82" />
+      <Rect x="122" y="137" width="12" height="38" rx="6" fill={leggings} opacity="0.82" />
+      {renderHead({ cx: 110, cy: 60, ponytailCx: 100, ponytailCy: 57 })}
       <Line x1="110" y1="70" x2="114" y2="116" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
       <Line x1="114" y1="116" x2="136" y2="138" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
       <Line x1="114" y1="116" x2="92" y2="138" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
@@ -621,8 +889,41 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
       return null;
     }
 
+    const importedWorkout = getReferenceWorkoutById(sourceId);
+    if (importedWorkout) {
+      return {
+        title: importedWorkout.name,
+        durationMinutes: importedWorkout.estDurationMinutes,
+        phaseLabel: formatReferencePhaseLabel(importedWorkout.phase)
+      };
+    }
+
     return premiumWorkoutMetaById[sourceId] ?? null;
   }, [isPremiumSession, sourceId]);
+  const selectedReferenceWorkout = useMemo(() => {
+    if (!isPremiumSession || !sourceId) {
+      return null;
+    }
+
+    return getReferenceWorkoutById(sourceId);
+  }, [isPremiumSession, sourceId]);
+  const displayedWarmupExercises = useMemo(
+    () => (selectedReferenceWorkout ? buildReferenceSimpleExercises(selectedReferenceWorkout, "warmup") : warmupExercises),
+    [selectedReferenceWorkout]
+  );
+  const displayedMainSets = useMemo(
+    () => (selectedReferenceWorkout ? buildReferenceMainSets(selectedReferenceWorkout) : mainSets),
+    [selectedReferenceWorkout]
+  );
+  const displayedCooldownExercises = useMemo(
+    () => (selectedReferenceWorkout ? buildReferenceSimpleExercises(selectedReferenceWorkout, "cooldown") : cooldownExercises),
+    [selectedReferenceWorkout]
+  );
+  const warmupMetaLabel = selectedReferenceWorkout ? `${displayedWarmupExercises.length} steps` : "5 mins";
+  const mainSetsMetaLabel = selectedReferenceWorkout ? `${displayedMainSets.length} steps` : "20 mins";
+  const cooldownMetaLabel = selectedReferenceWorkout ? `${displayedCooldownExercises.length} steps` : "10 mins";
+  const premiumIntensityLabel = selectedReferenceWorkout ? formatReferenceIntensityLabel(selectedReferenceWorkout.intensity) : intensity;
+  const premiumFocusLabel = selectedReferenceWorkout ? formatReferenceCategoryLabel(selectedReferenceWorkout.category) : "Full Body";
 
   const workoutLengthMinutes = useMemo(() => {
     if (isPremiumSession) {
@@ -652,7 +953,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     }
 
     const inputIds: string[] = [];
-    for (const set of mainSets) {
+    for (const set of displayedMainSets) {
       if (!expandedSetIds[set.id]) {
         continue;
       }
@@ -669,7 +970,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     }
 
     return inputIds;
-  }, [expandedSetIds, isPremiumSession]);
+  }, [displayedMainSets, expandedSetIds, isPremiumSession]);
   const activeSetInput = useMemo(() => (activeInputId ? parseSetInputId(activeInputId) : null), [activeInputId]);
   const activeInputIndex = activeInputId ? focusableInputOrder.indexOf(activeInputId) : -1;
   const canFocusPreviousInput = activeInputIndex > 0;
@@ -679,7 +980,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
       return false;
     }
 
-    const setDefinition = mainSets.find((set) => set.id === activeSetInput.exerciseId);
+    const setDefinition = displayedMainSets.find((set) => set.id === activeSetInput.exerciseId);
     if (!setDefinition) {
       return false;
     }
@@ -703,7 +1004,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     }
 
     return Boolean(previousValues.reps);
-  }, [activeSetInput, lastExerciseLogs, setLogsByExercise]);
+  }, [activeSetInput, displayedMainSets, lastExerciseLogs, setLogsByExercise]);
 
   useEffect(() => {
     if (activeInputId && !focusableInputOrder.includes(activeInputId)) {
@@ -761,7 +1062,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
       return;
     }
 
-    const setDefinition = mainSets.find((set) => set.id === activeSetInput.exerciseId);
+    const setDefinition = displayedMainSets.find((set) => set.id === activeSetInput.exerciseId);
     if (!setDefinition) {
       return;
     }
@@ -825,10 +1126,15 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     });
   }
 
-  function onShowExamplePress(exercise: { name: string; exampleSchematic: ExerciseSchematicType }): void {
+  function onShowExamplePress(exercise: {
+    name: string;
+    exampleSchematic: ExerciseSchematicType;
+    exampleDetail?: string | null;
+  }): void {
     setActiveExample({
       name: exercise.name,
-      imageUri: exerciseExampleImageByType[exercise.exampleSchematic]
+      schematicType: exercise.exampleSchematic,
+      detail: exercise.exampleDetail
     });
   }
 
@@ -894,7 +1200,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     const nowIso = new Date().toISOString();
     let hasExerciseLogUpdates = false;
 
-    for (const set of mainSets) {
+    for (const set of displayedMainSets) {
       const entries = setLogsByExercise[set.id] ?? [];
       const key = toExerciseKey(set.name);
       const existingBySet = nextExerciseLogs[key] ?? [];
@@ -969,7 +1275,9 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
     const rpe = intensity === "High" ? 9 : intensity === "Moderate" ? 7 : 5;
 
     const details = isPremiumSession
-      ? `Premium workout complete. Length: ${workoutLengthMinutes} min. Intensity: ${intensity}.`
+      ? selectedReferenceWorkout
+        ? `${selectedReferenceWorkout.name} complete. Length: ${workoutLengthMinutes} min. Suggested intensity: ${formatReferenceIntensityLabel(selectedReferenceWorkout.intensity)}.`
+        : `Premium workout complete. Length: ${workoutLengthMinutes} min. Intensity: ${intensity}.`
       : `Custom session complete. Duration input: ${workoutLengthMinutes} min. Intensity: ${intensity}. Weight: ${weightKg || "0"} kg. Reps: ${reps || "0"}.`;
 
     const result = await completeSession({
@@ -1084,7 +1392,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
                 INTENSITY
               </AppText>
               <AppText variant="subtitle" style={styles.primaryText}>
-                {intensity}
+                {premiumIntensityLabel}
               </AppText>
             </View>
             <View style={styles.statCard}>
@@ -1092,7 +1400,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
                 FOCUS
               </AppText>
               <AppText variant="subtitle" style={styles.primaryText}>
-                Full Body
+                {premiumFocusLabel}
               </AppText>
             </View>
           </View>
@@ -1101,14 +1409,14 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             <View style={styles.sectionHeader}>
               <AppText variant="subtitle">Warm-up</AppText>
               <AppText variant="caption" muted>
-                5 mins
+                {warmupMetaLabel}
               </AppText>
             </View>
             <View style={styles.listCard}>
-              {warmupExercises.map((exercise) => (
+              {displayedWarmupExercises.map((exercise) => (
                 <View key={exercise.id} style={styles.simpleRow}>
                   <View style={styles.simpleRowIcon}>
-                    <MaterialIcons name={exercise.icon} size={18} color={colors.primary} />
+                    <ExerciseSchematic type={exercise.exampleSchematic} />
                   </View>
                   <View style={styles.flexGrow}>
                     <AppText variant="bodyStrong">{exercise.name}</AppText>
@@ -1131,16 +1439,16 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             <View style={styles.sectionHeader}>
               <AppText variant="subtitle">Main Sets</AppText>
               <AppText variant="caption" muted>
-                20 mins
+                {mainSetsMetaLabel}
               </AppText>
             </View>
             <View style={styles.blockGap}>
-              {mainSets.map((set) => (
+              {displayedMainSets.map((set) => (
                 <View key={set.id} style={styles.mainSetCard}>
                   <View style={styles.mainSetTop}>
                     <View style={styles.mainSetLeft}>
                       <View style={styles.mainSetIconWrap}>
-                        <MaterialIcons name={set.icon} size={24} color={colors.primary} />
+                        <ExerciseSchematic type={set.exampleSchematic} />
                       </View>
                       <View style={styles.flexGrow}>
                         <AppText variant="bodyStrong">{set.name}</AppText>
@@ -1148,9 +1456,11 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
                           {set.target}
                         </AppText>
                         <View style={styles.tagRow}>
-                          <View style={styles.smallTag}>
-                            <AppText variant="caption">{set.sets} Sets</AppText>
-                          </View>
+                          {!set.hideSetCount ? (
+                            <View style={styles.smallTag}>
+                              <AppText variant="caption">{set.sets} Sets</AppText>
+                            </View>
+                          ) : null}
                           <View style={styles.smallTag}>
                             <AppText variant="caption">{set.reps}</AppText>
                           </View>
@@ -1175,7 +1485,9 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
                         const previousValues = lastExerciseLogs[toExerciseKey(set.name)]?.[setIndex] ?? undefined;
                         const weightPlaceholder = previousValues?.weightKg ? `Last: ${previousValues.weightKg} kg` : "kg";
                         const repsPlaceholder = previousValues?.reps ? `Last: ${previousValues.reps}` : "reps";
-                        const secondsPlaceholder = previousValues?.seconds ? `Last: ${previousValues.seconds} sec` : "seconds";
+                        const timeInputLabel = set.timeUnit === "mins" ? "mins" : "seconds";
+                        const lastTimeUnitLabel = set.timeUnit === "mins" ? "min" : "sec";
+                        const secondsPlaceholder = previousValues?.seconds ? `Last: ${previousValues.seconds} ${lastTimeUnitLabel}` : timeInputLabel;
                         const rowIsComplete = isSetComplete(set.loggingMode, entry);
                         const secondsInputId = toSetInputId(set.id, setIndex, "seconds");
                         const weightInputId = toSetInputId(set.id, setIndex, "weightKg");
@@ -1196,19 +1508,17 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
                             </View>
                             <View style={styles.setRowInputs}>
                               {set.loggingMode === "seconds" ? (
-                                <>
-                                  <TextInput
-                                    style={styles.setRowInput}
-                                    keyboardType="number-pad"
-                                    ref={(input) => onRegisterInputRef(secondsInputId, input)}
-                                    value={entry.seconds}
-                                    onFocus={() => setActiveInputId(secondsInputId)}
-                                    onBlur={() => onInputBlur(secondsInputId)}
-                                    onChangeText={(value) => onSetValueChange(set.id, setIndex, "seconds", value)}
-                                    placeholder={secondsPlaceholder}
-                                    placeholderTextColor={colors.textMuted}
-                                  />
-                                </>
+                                <TextInput
+                                  style={styles.setRowInput}
+                                  keyboardType="number-pad"
+                                  ref={(input) => onRegisterInputRef(secondsInputId, input)}
+                                  value={entry.seconds}
+                                  onFocus={() => setActiveInputId(secondsInputId)}
+                                  onBlur={() => onInputBlur(secondsInputId)}
+                                  onChangeText={(value) => onSetValueChange(set.id, setIndex, "seconds", value)}
+                                  placeholder={secondsPlaceholder}
+                                  placeholderTextColor={colors.textMuted}
+                                />
                               ) : (
                                 <>
                                   <TextInput
@@ -1250,14 +1560,14 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
             <View style={styles.sectionHeader}>
               <AppText variant="subtitle">Cooldown</AppText>
               <AppText variant="caption" muted>
-                10 mins
+                {cooldownMetaLabel}
               </AppText>
             </View>
             <View style={styles.listCard}>
-              {cooldownExercises.map((exercise) => (
+              {displayedCooldownExercises.map((exercise) => (
                 <View key={exercise.id} style={styles.simpleRow}>
                   <View style={styles.simpleRowIcon}>
-                    <MaterialIcons name={exercise.icon} size={18} color={colors.primary} />
+                    <ExerciseSchematic type={exercise.exampleSchematic} />
                   </View>
                   <View style={styles.flexGrow}>
                     <AppText variant="bodyStrong">{exercise.name}</AppText>
@@ -1344,7 +1654,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
               {freeExercises.map((exercise) => (
                 <View key={exercise.id} style={styles.exerciseRow}>
                   <View style={styles.exerciseIconWrap}>
-                    <MaterialIcons name={exercise.icon} size={22} color={colors.primary} />
+                    <ExerciseSchematic type={exercise.exampleSchematic} />
                   </View>
                   <View style={styles.flexGrow}>
                     <AppText variant="bodyStrong" style={styles.primaryText}>
@@ -1539,7 +1849,18 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
                 <MaterialIcons name="close" size={18} color={colors.primary} />
               </Pressable>
             </View>
-            {activeExample ? <Image source={{ uri: activeExample.imageUri }} style={styles.exampleModalImage} resizeMode="cover" /> : null}
+            {activeExample ? (
+              <View style={styles.exampleModalImage}>
+                <ExerciseSchematic type={activeExample.schematicType} />
+              </View>
+            ) : null}
+            {activeExample?.detail ? (
+              <View style={styles.exampleModalBody}>
+                <AppText variant="caption" muted>
+                  {activeExample.detail}
+                </AppText>
+              </View>
+            ) : null}
           </Pressable>
         </Pressable>
       </Modal>
@@ -1710,12 +2031,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     gap: 8
   },
   exerciseIconWrap: {
-    width: 46,
-    height: 46,
+    width: 72,
+    height: 72,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center"
+    overflow: "hidden"
   },
   addExerciseButton: {
     borderWidth: 2,
@@ -1814,12 +2134,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderBottomColor: colors.border
   },
   simpleRowIcon: {
-    width: 36,
-    height: 36,
+    width: 58,
+    height: 58,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center"
+    overflow: "hidden"
   },
   flexGrow: {
     flex: 1
@@ -1845,12 +2164,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     gap: spacing.sm
   },
   mainSetIconWrap: {
-    width: 52,
-    height: 52,
+    width: 74,
+    height: 74,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center"
+    overflow: "hidden"
   },
   tagRow: {
     flexDirection: "row",
@@ -2120,9 +2438,14 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm
   },
+  exampleModalBody: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md
+  },
   exampleModalImage: {
     width: "100%",
-    aspectRatio: 16 / 9,
+    aspectRatio: 1,
+    padding: spacing.md,
     backgroundColor: "#E7F1EC"
   }
 });
