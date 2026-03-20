@@ -1,9 +1,9 @@
 import NetInfo from "@react-native-community/netinfo";
 
 import type { CycleSettings, CycleSettingsState } from "@/api/types";
+import { getCurrentUserId } from "@/services/supabase/authHelpers";
 import { asyncStorageService } from "@/services/storage/asyncStorage";
 import { supabase } from "@/services/supabase/client";
-import { useAuthStore } from "@/store/authStore";
 import { storageKeys } from "@/utils/constants";
 import { nowIso } from "@/utils/date";
 import { AppError } from "@/utils/errors";
@@ -24,19 +24,6 @@ function createEmptyState(): CycleSettingsState {
 
 function getCycleSettingsStorageKey(userId: string): string {
   return `${storageKeys.cycleSettingsCachePrefix}.${userId}`;
-}
-
-async function getCurrentUserId(): Promise<string | null> {
-  const storedSession = useAuthStore.getState().session;
-  if (storedSession?.user.id) {
-    return storedSession.user.id;
-  }
-
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
-
-  return session?.user.id ?? null;
 }
 
 async function readLocalCycleSettingsState(userId: string): Promise<CycleSettingsState | null> {

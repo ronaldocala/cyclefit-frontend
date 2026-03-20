@@ -1,5 +1,11 @@
-﻿export type FitnessLevel = "beginner" | "intermediate" | "advanced";
+export type FitnessLevel = "beginner" | "intermediate" | "advanced";
 export type Units = "metric" | "imperial";
+export type WeeklyTrainingDays = "1-2" | "3-4" | "5+";
+export type RidingEnvironment = "indoor" | "outdoor" | "mixed";
+export type WorkoutTimePreference = "short" | "medium" | "long";
+export type EquipmentAccess =
+  | "home_equipment"
+  | "gym_equipment";
 
 export type Profile = {
   user_id: string;
@@ -28,6 +34,17 @@ export type CycleSettingsState = {
   settings: CycleSettings | null;
   syncStatus: CycleSettingsSyncStatus;
   lastSyncedAt: string | null;
+};
+
+export type OnboardingPreferences = {
+  user_id: string;
+  equipment_access: EquipmentAccess[];
+  weekly_training_days: WeeklyTrainingDays;
+  riding_environment: RidingEnvironment;
+  available_workout_time: WorkoutTimePreference;
+  onboarding_completed_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type DailyProgressLog = {

@@ -1,4 +1,4 @@
-import type { CycleSettings, PremiumWorkout, Profile, UserWorkout, WorkoutSession } from "@/api/types";
+import type { CycleSettings, OnboardingPreferences, PremiumWorkout, Profile, UserWorkout, WorkoutSession } from "@/api/types";
 
 const nowIso = new Date().toISOString();
 const todayIso = nowIso.slice(0, 10);
@@ -20,6 +20,17 @@ export const demoCycleSettings: CycleSettings = {
   last_period_date: todayIso,
   cycle_length_days: 28,
   period_length_days: 5,
+  created_at: nowIso,
+  updated_at: nowIso
+};
+
+export const demoOnboardingPreferences: OnboardingPreferences = {
+  user_id: "demo-user",
+  equipment_access: ["gym_equipment"],
+  weekly_training_days: "3-4",
+  riding_environment: "mixed",
+  available_workout_time: "medium",
+  onboarding_completed_at: nowIso,
   created_at: nowIso,
   updated_at: nowIso
 };

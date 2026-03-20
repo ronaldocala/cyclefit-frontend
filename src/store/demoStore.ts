@@ -2,15 +2,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import type { CycleSettingsState, Profile } from "@/api/types";
-import { demoCycleSettings, demoProfile } from "@/services/demo/demoData";
+import type { CycleSettingsState, OnboardingPreferences, Profile } from "@/api/types";
+import { demoCycleSettings, demoOnboardingPreferences, demoProfile } from "@/services/demo/demoData";
 import { nowIso } from "@/utils/date";
 
 type DemoStoreState = {
   profile: Profile;
   cycleState: CycleSettingsState;
+  onboardingPreferences: OnboardingPreferences;
   setProfile: (patch: Partial<Profile>) => Profile;
   setCycleState: (input: { last_period_date: string; cycle_length_days: number; period_length_days: number }) => CycleSettingsState;
+  setOnboardingPreferences: (
+    patch: Partial<Pick<OnboardingPreferences, "equipment_access" | "weekly_training_days" | "riding_environment" | "available_workout_time">>
+  ) => OnboardingPreferences;
 };
 
 function createInitialCycleState(): CycleSettingsState {
@@ -26,6 +30,7 @@ export const useDemoStore = create<DemoStoreState>()(
     (set, get) => ({
       profile: demoProfile,
       cycleState: createInitialCycleState(),
+      onboardingPreferences: demoOnboardingPreferences,
       setProfile: (patch) => {
         const nextProfile: Profile = {
           ...get().profile,
@@ -48,6 +53,15 @@ export const useDemoStore = create<DemoStoreState>()(
         };
         set({ cycleState: nextCycleState });
         return nextCycleState;
+      },
+      setOnboardingPreferences: (patch) => {
+        const nextPreferences: OnboardingPreferences = {
+          ...get().onboardingPreferences,
+          ...patch,
+          updated_at: nowIso()
+        };
+        set({ onboardingPreferences: nextPreferences });
+        return nextPreferences;
       }
     }),
     {
