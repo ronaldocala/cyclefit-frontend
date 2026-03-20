@@ -1,55 +1,29 @@
-import {
-  addDays,
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  startOfMonth,
-  startOfWeek,
-  subMonths
-} from "date-fns";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useEffect, useMemo, useState } from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
+import type { EquipmentAccess, FitnessLevel, WeeklyTrainingDays, WorkoutTimePreference } from "@/api/types";
 import { AppButton } from "@/components/AppButton";
 import { AppCard } from "@/components/AppCard";
 import { AppText } from "@/components/AppText";
+import { CycleTrackingEditor } from "@/components/CycleTrackingEditor";
+import { GymPreferencesForm } from "@/components/GymPreferencesForm";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { computeCycleSummary } from "@/features/cycle/cycleCalculator";
+import { goalOptions } from "@/features/onboarding/preferenceOptions";
 import { useSettingsScreen } from "@/features/settings/hooks/useSettingsScreen";
-import { signOut } from "@/services/supabase/authService";
 import { useThemeColors } from "@/theme/ThemeProvider";
-import { getColorsForPhase, radius, spacing, type ThemeColors } from "@/theme/tokens";
-import { asDate, toIsoDate } from "@/utils/date";
+import { radius, spacing, type ThemeColors } from "@/theme/tokens";
+import { toIsoDate } from "@/utils/date";
 
-const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
-const menstrualColors = getColorsForPhase("menstrual");
-const ovulationColors = getColorsForPhase("ovulation");
+import type { SettingsStackParamList } from "@/navigation/types";
 
-function parseLength(value: string): number | null {
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function buildCalendarDays(monthDate: Date): Date[] {
-  return eachDayOfInterval({
-    start: startOfWeek(startOfMonth(monthDate), { weekStartsOn: 1 }),
-    end: endOfWeek(endOfMonth(monthDate), { weekStartsOn: 1 })
-  });
-}
-
-function chunkIntoWeeks(days: Date[]): Date[][] {
-  const weeks: Date[][] = [];
-
-  for (let index = 0; index < days.length; index += 7) {
-    weeks.push(days.slice(index, index + 7));
-  }
-
-  return weeks;
-}
+const DEFAULT_WEEKLY_TRAINING_DAYS: WeeklyTrainingDays = "3-4";
+const DEFAULT_EQUIPMENT_ACCESS: EquipmentAccess = "home_equipment";
+const DEFAULT_WORKOUT_TIME: WorkoutTimePreference = "medium";
+const settingsCycleLengthOptions = Array.from({ length: 46 }, (_, index) => 15 + index);
+const settingsPeriodLengthOptions = Array.from({ length: 15 }, (_, index) => 1 + index);
 
 function formatSyncMessage(syncStatus: "synced" | "pending", lastSyncedAt: string | null): string {
   if (syncStatus === "pending") {
@@ -63,68 +37,63 @@ function formatSyncMessage(syncStatus: "synced" | "pending", lastSyncedAt: strin
   return `Synced ${new Date(lastSyncedAt).toLocaleString()}.`;
 }
 
-export function SettingsScreen() {
+type Props = NativeStackScreenProps<SettingsStackParamList, "SettingsHome">;
+
+export function SettingsScreen({ navigation }: Props) {
   const { height: windowHeight } = useWindowDimensions();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const {
     profile,
+    onboardingPreferences,
     cycleState,
     cycleSettings,
     loading,
-    updateProfile,
+    saveTrainingPreferences,
     updateCycleSettings,
-    restorePurchases,
-    openCustomerCenter,
-    deletingAccount,
-    deleteAccount,
-    restoring,
-    openingCustomerCenter,
-    savingProfile,
     savingCycleSettings
   } = useSettingsScreen();
 
-  const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
-  const [profileSavedMessage, setProfileSavedMessage] = useState<string | null>(null);
+  const [draftFitnessLevel, setDraftFitnessLevel] = useState<FitnessLevel>("beginner");
+  const [draftGoal, setDraftGoal] = useState<string>(goalOptions[0]);
+  const [draftWeeklyTrainingDays, setDraftWeeklyTrainingDays] = useState<WeeklyTrainingDays>(
+    onboardingPreferences?.weekly_training_days ?? DEFAULT_WEEKLY_TRAINING_DAYS
+  );
+  const [draftWorkoutTime, setDraftWorkoutTime] = useState<WorkoutTimePreference>(
+    onboardingPreferences?.available_workout_time ?? DEFAULT_WORKOUT_TIME
+  );
+  const [draftEquipmentAccess, setDraftEquipmentAccess] = useState<EquipmentAccess[]>(
+    onboardingPreferences?.equipment_access?.length ? onboardingPreferences.equipment_access : [DEFAULT_EQUIPMENT_ACCESS]
+  );
   const [isCycleModalOpen, setIsCycleModalOpen] = useState(false);
   const [cycleError, setCycleError] = useState<string | null>(null);
   const [draftLastPeriodDate, setDraftLastPeriodDate] = useState(cycleSettings?.last_period_date ?? toIsoDate(new Date()));
-  const [draftCycleLengthDays, setDraftCycleLengthDays] = useState(String(cycleSettings?.cycle_length_days ?? 28));
-  const [draftPeriodLengthDays, setDraftPeriodLengthDays] = useState(String(cycleSettings?.period_length_days ?? 5));
-  const [visibleMonth, setVisibleMonth] = useState(asDate(cycleSettings?.last_period_date ?? toIsoDate(new Date())));
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const modalScrollRef = useRef<ScrollView | null>(null);
-  const keyboardOffset = keyboardHeight > 0 ? keyboardHeight + spacing.sm : spacing.md;
-  const modalMaxHeight = Math.max(Math.min(windowHeight - spacing.xl * 2 - keyboardOffset, 760), 360);
-
-  useEffect(() => {
-    setDisplayName(profile?.display_name ?? "");
-  }, [profile?.display_name]);
+  const [draftCycleLengthDays, setDraftCycleLengthDays] = useState(cycleSettings?.cycle_length_days ?? 28);
+  const [draftPeriodLengthDays, setDraftPeriodLengthDays] = useState(cycleSettings?.period_length_days ?? 5);
+  const modalMaxHeight = Math.max(Math.min(windowHeight - spacing.xl * 2, 760), 360);
 
   useEffect(() => {
     const nextDate = cycleSettings?.last_period_date ?? toIsoDate(new Date());
     setDraftLastPeriodDate(nextDate);
-    setDraftCycleLengthDays(String(cycleSettings?.cycle_length_days ?? 28));
-    setDraftPeriodLengthDays(String(cycleSettings?.period_length_days ?? 5));
-    setVisibleMonth(asDate(nextDate));
+    setDraftCycleLengthDays(cycleSettings?.cycle_length_days ?? 28);
+    setDraftPeriodLengthDays(cycleSettings?.period_length_days ?? 5);
   }, [cycleSettings?.cycle_length_days, cycleSettings?.last_period_date, cycleSettings?.period_length_days]);
 
   useEffect(() => {
-    const showEvent = Platform.OS === "ios" ? "keyboardWillChangeFrame" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const showSubscription = Keyboard.addListener(showEvent, (event) => {
-      setKeyboardHeight(Math.max(event.endCoordinates.height, 0));
-    });
-    const hideSubscription = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
-    });
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
+    setDraftFitnessLevel(profile?.fitness_level ?? "beginner");
+    setDraftGoal(profile?.goal ?? goalOptions[0]);
+    setDraftWeeklyTrainingDays(onboardingPreferences?.weekly_training_days ?? DEFAULT_WEEKLY_TRAINING_DAYS);
+    setDraftWorkoutTime(onboardingPreferences?.available_workout_time ?? DEFAULT_WORKOUT_TIME);
+    setDraftEquipmentAccess(
+      onboardingPreferences?.equipment_access?.length ? onboardingPreferences.equipment_access : [DEFAULT_EQUIPMENT_ACCESS]
+    );
+  }, [
+    onboardingPreferences?.available_workout_time,
+    onboardingPreferences?.equipment_access,
+    onboardingPreferences?.weekly_training_days,
+    profile?.fitness_level,
+    profile?.goal
+  ]);
 
   const summary = useMemo(() => {
     if (!cycleSettings) {
@@ -133,41 +102,20 @@ export function SettingsScreen() {
 
     return computeCycleSummary(cycleSettings);
   }, [cycleSettings]);
-
-  const draftCycleLengthValue = parseLength(draftCycleLengthDays);
-  const draftPeriodLengthValue = parseLength(draftPeriodLengthDays);
-  const selectedStartDate = asDate(draftLastPeriodDate);
-  const selectedPeriodDates = useMemo(() => {
-    const periodLength = draftPeriodLengthValue && draftPeriodLengthValue > 0 ? draftPeriodLengthValue : 1;
-    return Array.from({ length: periodLength }, (_, index) => addDays(selectedStartDate, index));
-  }, [draftPeriodLengthValue, selectedStartDate]);
-  const selectedNextPeriodDates = useMemo(() => {
-    const cycleLength = draftCycleLengthValue && draftCycleLengthValue > 0 ? draftCycleLengthValue : 28;
-    const periodLength = draftPeriodLengthValue && draftPeriodLengthValue > 0 ? draftPeriodLengthValue : 1;
-    const nextPeriodStartDate = addDays(selectedStartDate, cycleLength);
-
-    return Array.from({ length: periodLength }, (_, index) => addDays(nextPeriodStartDate, index));
-  }, [draftCycleLengthValue, draftPeriodLengthValue, selectedStartDate]);
-  const selectedOvulationDates = useMemo(() => {
-    const cycleLength = draftCycleLengthValue && draftCycleLengthValue > 0 ? draftCycleLengthValue : 28;
-    const periodLength = draftPeriodLengthValue && draftPeriodLengthValue > 0 ? draftPeriodLengthValue : 5;
-    const ovulationCenter = Math.min(Math.max(cycleLength - 14, periodLength + 1), cycleLength);
-    const ovulationStartDay = Math.max(ovulationCenter - 1, periodLength + 1);
-    const ovulationEndDay = Math.min(ovulationCenter + 1, cycleLength);
-
-    return Array.from({ length: ovulationEndDay - ovulationStartDay + 1 }, (_, index) =>
-      addDays(selectedStartDate, ovulationStartDay - 1 + index)
-    );
-  }, [draftCycleLengthValue, draftPeriodLengthValue, selectedStartDate]);
-  const calendarDays = useMemo(() => buildCalendarDays(visibleMonth), [visibleMonth]);
-  const calendarWeeks = useMemo(() => chunkIntoWeeks(calendarDays), [calendarDays]);
+  const selectedEquipment = draftEquipmentAccess[0] ?? DEFAULT_EQUIPMENT_ACCESS;
+  const profileName = profile?.display_name?.trim() || "Your Profile";
+  const profileInitials = profileName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "Y";
 
   function openCycleModal(): void {
     const nextDate = cycleSettings?.last_period_date ?? toIsoDate(new Date());
     setDraftLastPeriodDate(nextDate);
-    setDraftCycleLengthDays(String(cycleSettings?.cycle_length_days ?? 28));
-    setDraftPeriodLengthDays(String(cycleSettings?.period_length_days ?? 5));
-    setVisibleMonth(new Date());
+    setDraftCycleLengthDays(cycleSettings?.cycle_length_days ?? 28);
+    setDraftPeriodLengthDays(cycleSettings?.period_length_days ?? 5);
     setCycleError(null);
     setIsCycleModalOpen(true);
   }
@@ -177,29 +125,65 @@ export function SettingsScreen() {
     setCycleError(null);
   }
 
-  function scrollModalToInputs(): void {
-    setTimeout(() => {
-      modalScrollRef.current?.scrollToEnd({ animated: true });
-    }, Platform.OS === "ios" ? 260 : 220);
-  }
+  async function persistTrainingPreferences(
+    patch: Partial<{
+      fitnessLevel: FitnessLevel;
+      goal: string;
+      weeklyTrainingDays: WeeklyTrainingDays;
+      workoutTime: WorkoutTimePreference;
+      equipmentAccess: EquipmentAccess[];
+    }>
+  ): Promise<void> {
+    const nextFitnessLevel = patch.fitnessLevel ?? draftFitnessLevel;
+    const nextGoal = patch.goal ?? draftGoal;
+    const nextWeeklyTrainingDays = patch.weeklyTrainingDays ?? draftWeeklyTrainingDays;
+    const nextWorkoutTime = patch.workoutTime ?? draftWorkoutTime;
+    const nextEquipmentAccess = patch.equipmentAccess ?? draftEquipmentAccess;
 
-  async function handleProfileSave(): Promise<void> {
-    await updateProfile({
-      display_name: displayName.trim() || null
+    if (patch.fitnessLevel) {
+      setDraftFitnessLevel(patch.fitnessLevel);
+    }
+
+    if (patch.goal) {
+      setDraftGoal(patch.goal);
+    }
+
+    if (patch.weeklyTrainingDays) {
+      setDraftWeeklyTrainingDays(patch.weeklyTrainingDays);
+    }
+
+    if (patch.workoutTime) {
+      setDraftWorkoutTime(patch.workoutTime);
+    }
+
+    if (patch.equipmentAccess) {
+      setDraftEquipmentAccess(patch.equipmentAccess);
+    }
+
+    await saveTrainingPreferences({
+      profile: {
+        fitness_level: nextFitnessLevel,
+        goal: nextGoal
+      },
+      onboarding: {
+        weekly_training_days: nextWeeklyTrainingDays,
+        riding_environment: onboardingPreferences?.riding_environment ?? "mixed",
+        equipment_access: [nextEquipmentAccess[0] ?? DEFAULT_EQUIPMENT_ACCESS],
+        available_workout_time: nextWorkoutTime
+      }
     });
-    setProfileSavedMessage("Profile updated.");
   }
 
   async function handleCycleSave(): Promise<void> {
-    const nextCycleLength = parseLength(draftCycleLengthDays);
-    const nextPeriodLength = parseLength(draftPeriodLengthDays);
+    const nextCycleLength = draftCycleLengthDays;
+    const nextPeriodLength = draftPeriodLengthDays;
 
-    if (!nextCycleLength || nextCycleLength < 15 || nextCycleLength > 60) {
+    if (nextCycleLength < 15 || nextCycleLength > 60) {
       setCycleError("Cycle length needs to be between 15 and 60 days.");
       return;
     }
 
-    if (!nextPeriodLength || nextPeriodLength < 1 || nextPeriodLength > 15) {
+    if (nextPeriodLength < 1 || nextPeriodLength > 15) {
       setCycleError("Period length needs to be between 1 and 15 days.");
       return;
     }
@@ -230,35 +214,29 @@ export function SettingsScreen() {
     <ScreenContainer includeBottomInset={false} contentContainerStyle={styles.content}>
       <AppText variant="title">Settings</AppText>
 
-      <AppCard style={styles.card}>
-        <AppText variant="subtitle">Profile</AppText>
-        <View style={styles.fieldBlock}>
-          <AppText variant="caption" muted>
-            Display name
-          </AppText>
-          <TextInput
-            style={styles.input}
-            value={displayName}
-            placeholder="Display name"
-            placeholderTextColor={colors.textMuted}
-            onChangeText={(value) => {
-              setDisplayName(value);
-              setProfileSavedMessage(null);
-            }}
-          />
-        </View>
-        {profileSavedMessage ? (
-          <AppText variant="caption" muted>
-            {profileSavedMessage}
-          </AppText>
-        ) : null}
-        <AppButton label={savingProfile ? "Saving..." : "Save profile"} onPress={() => void handleProfileSave()} />
+      <AppCard style={styles.profileCard}>
+        <Pressable style={styles.profileTile} onPress={() => navigation.navigate("ProfileSettings")}>
+          <View style={styles.profileBadge}>
+            <AppText variant="subtitle" style={styles.profileBadgeText}>
+              {profileInitials}
+            </AppText>
+          </View>
+          <View style={styles.profileTileText}>
+            <AppText variant="subtitle">{profileName}</AppText>
+            <AppText variant="caption" muted>
+              Account settings
+            </AppText>
+          </View>
+          <View style={styles.profileTileAction}>
+            <MaterialIcons name="arrow-forward" size={18} color={colors.primary} />
+          </View>
+        </Pressable>
       </AppCard>
 
       <AppCard style={styles.cycleOverviewCard}>
         <View style={styles.cycleOverviewHeader}>
           <View style={styles.cycleOverviewText}>
-            <AppText variant="subtitle">Cycle tracking</AppText>
+            <AppText variant="subtitle">Cycle Tracking</AppText>
             <AppText variant="caption" muted>
               {formatSyncMessage(cycleState.syncStatus, cycleState.lastSyncedAt)}
             </AppText>
@@ -309,20 +287,25 @@ export function SettingsScreen() {
       </AppCard>
 
       <AppCard style={styles.card}>
-        <AppText variant="subtitle">Subscription</AppText>
-        <AppText muted>Restore purchases and sync entitlement status.</AppText>
-        <AppButton
-          label={openingCustomerCenter ? "Opening..." : "Manage subscription"}
-          variant="outline"
-          onPress={() => void openCustomerCenter()}
+        <AppText variant="subtitle">Gym Preferences</AppText>
+        <GymPreferencesForm
+          value={{
+            fitnessLevel: draftFitnessLevel,
+            goal: draftGoal,
+            weeklyTrainingDays: draftWeeklyTrainingDays,
+            availableWorkoutTime: draftWorkoutTime,
+            equipmentAccess: draftEquipmentAccess
+          }}
+          onChange={(patch) => {
+            void persistTrainingPreferences({
+              fitnessLevel: patch.fitnessLevel,
+              goal: patch.goal,
+              weeklyTrainingDays: patch.weeklyTrainingDays,
+              workoutTime: patch.availableWorkoutTime,
+              equipmentAccess: patch.equipmentAccess
+            });
+          }}
         />
-        <AppButton label={restoring ? "Restoring..." : "Restore purchases"} onPress={() => void restorePurchases()} />
-      </AppCard>
-
-      <AppCard style={styles.card}>
-        <AppText variant="subtitle">Account</AppText>
-        <AppButton label="Sign out" variant="outline" onPress={() => void signOut()} />
-        <AppButton label={deletingAccount ? "Deleting..." : "Delete account"} variant="ghost" onPress={() => void deleteAccount()} />
       </AppCard>
 
       <Modal
@@ -333,7 +316,7 @@ export function SettingsScreen() {
         statusBarTranslucent
         onRequestClose={closeCycleModal}
       >
-        <Pressable style={[styles.modalBackdrop, { paddingBottom: keyboardOffset }]} onPress={closeCycleModal}>
+        <Pressable style={styles.modalBackdrop} onPress={closeCycleModal}>
           <View style={styles.modalKeyboard}>
             <Pressable style={[styles.modalCard, { maxHeight: modalMaxHeight }]} onPress={(event) => event.stopPropagation()}>
               <View style={styles.modalHeader}>
@@ -344,145 +327,39 @@ export function SettingsScreen() {
               </View>
 
               <ScrollView
-                ref={modalScrollRef}
                 style={styles.modalScroll}
                 contentContainerStyle={styles.modalScrollContent}
-                automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
-                keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
-                <View style={styles.calendarHeader}>
-                  <Pressable style={styles.calendarNavButton} onPress={() => setVisibleMonth((current) => subMonths(current, 1))}>
-                    <AppText variant="bodyStrong">Prev</AppText>
-                  </Pressable>
-                  <AppText variant="bodyStrong">{format(visibleMonth, "MMMM yyyy")}</AppText>
-                  <Pressable style={styles.calendarNavButton} onPress={() => setVisibleMonth((current) => addMonths(current, 1))}>
-                    <AppText variant="bodyStrong">Next</AppText>
-                  </Pressable>
-                </View>
+                <CycleTrackingEditor
+                  key={isCycleModalOpen ? "cycle-editor-open" : "cycle-editor-closed"}
+                  value={{
+                    lastPeriodDate: draftLastPeriodDate,
+                    cycleLengthDays: draftCycleLengthDays,
+                    periodLengthDays: draftPeriodLengthDays
+                  }}
+                  onChange={(patch) => {
+                    if (patch.lastPeriodDate !== undefined) {
+                      setDraftLastPeriodDate(patch.lastPeriodDate);
+                    }
 
-                <View style={styles.weekdayRow}>
-                  {weekdayLabels.map((label) => (
-                    <View key={label} style={styles.weekdayCell}>
-                      <AppText variant="caption" muted style={styles.weekdayLabel}>
-                        {label}
-                      </AppText>
-                    </View>
-                  ))}
-                </View>
+                    if (patch.cycleLengthDays !== undefined) {
+                      setDraftCycleLengthDays(patch.cycleLengthDays);
+                    }
 
-                <View style={styles.calendarGrid}>
-                  {calendarWeeks.map((week, weekIndex) => (
-                    <View key={`${format(week[0], "yyyy-MM-dd")}-${weekIndex}`} style={styles.calendarWeekRow}>
-                      {week.map((day, dayIndex) => {
-                        const isSelectedStart = isSameDay(day, selectedStartDate);
-                        const isInPeriod = selectedPeriodDates.some((selectedDay) => isSameDay(selectedDay, day));
-                        const isInNextPeriod = selectedNextPeriodDates.some((selectedDay) => isSameDay(selectedDay, day));
-                        const isInOvulation = selectedOvulationDates.some((selectedDay) => isSameDay(selectedDay, day));
-                        const isCurrentMonth = isSameMonth(day, visibleMonth);
-                        const isPeriodStart =
-                          isInPeriod && !selectedPeriodDates.some((selectedDay) => isSameDay(selectedDay, addDays(day, -1)));
-                        const isPeriodEnd =
-                          isInPeriod && !selectedPeriodDates.some((selectedDay) => isSameDay(selectedDay, addDays(day, 1)));
-                        const isNextPeriodStart =
-                          isInNextPeriod && !selectedNextPeriodDates.some((selectedDay) => isSameDay(selectedDay, addDays(day, -1)));
-                        const isNextPeriodEnd =
-                          isInNextPeriod && !selectedNextPeriodDates.some((selectedDay) => isSameDay(selectedDay, addDays(day, 1)));
-                        const isOvulationStart =
-                          isInOvulation && !selectedOvulationDates.some((selectedDay) => isSameDay(selectedDay, addDays(day, -1)));
-                        const isOvulationEnd =
-                          isInOvulation && !selectedOvulationDates.some((selectedDay) => isSameDay(selectedDay, addDays(day, 1)));
+                    if (patch.periodLengthDays !== undefined) {
+                      setDraftPeriodLengthDays(patch.periodLengthDays);
+                    }
 
-                        return (
-                          <Pressable
-                            key={day.toISOString()}
-                            style={[
-                              styles.calendarDayCell,
-                              dayIndex < 6 ? styles.calendarDayCellBorder : undefined,
-                              weekIndex < calendarWeeks.length - 1 ? styles.calendarDayRowBorder : undefined,
-                              !isCurrentMonth ? styles.calendarDayOutsideMonth : undefined
-                            ]}
-                            onPress={() => setDraftLastPeriodDate(toIsoDate(day))}
-                          >
-                            {isInPeriod ? (
-                              <View
-                                style={[
-                                  styles.periodFill,
-                                  isPeriodStart ? styles.periodFillStart : undefined,
-                                  isPeriodEnd ? styles.periodFillEnd : undefined
-                                ]}
-                              />
-                            ) : isInNextPeriod ? (
-                              <View
-                                style={[
-                                  styles.nextPeriodFill,
-                                  isNextPeriodStart ? styles.nextPeriodFillStart : undefined,
-                                  isNextPeriodEnd ? styles.nextPeriodFillEnd : undefined
-                                ]}
-                              />
-                            ) : isInOvulation ? (
-                              <View
-                                style={[
-                                  styles.ovulationFill,
-                                  isOvulationStart ? styles.ovulationFillStart : undefined,
-                                  isOvulationEnd ? styles.ovulationFillEnd : undefined
-                                ]}
-                              />
-                            ) : null}
-                            <View style={[styles.dayNumberWrap, isSelectedStart ? styles.dayNumberWrapSelected : undefined]}>
-                              <AppText
-                                variant="caption"
-                                style={[
-                                  styles.dayNumberText,
-                                  !isCurrentMonth ? styles.calendarDayTextMuted : undefined,
-                                  isInPeriod ? styles.calendarDayTextInPeriod : undefined,
-                                  isInNextPeriod ? styles.calendarDayTextInNextPeriod : undefined,
-                                  isInOvulation ? styles.calendarDayTextInOvulation : undefined,
-                                  isSelectedStart ? styles.calendarDayTextSelected : undefined
-                                ]}
-                              >
-                                {format(day, "d")}
-                              </AppText>
-                            </View>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  ))}
-                </View>
-
-                <View style={styles.row}>
-                  <View style={[styles.fieldBlock, styles.halfField]}>
-                    <AppText variant="caption" muted>
-                      Cycle length
-                    </AppText>
-                    <TextInput
-                      style={styles.input}
-                      value={draftCycleLengthDays}
-                      placeholder="28"
-                      placeholderTextColor={colors.textMuted}
-                      onChangeText={setDraftCycleLengthDays}
-                      onFocus={scrollModalToInputs}
-                      keyboardType="number-pad"
-                    />
-                  </View>
-
-                  <View style={[styles.fieldBlock, styles.halfField]}>
-                    <AppText variant="caption" muted>
-                      Period length
-                    </AppText>
-                    <TextInput
-                      style={styles.input}
-                      value={draftPeriodLengthDays}
-                      placeholder="5"
-                      placeholderTextColor={colors.textMuted}
-                      onChangeText={setDraftPeriodLengthDays}
-                      onFocus={scrollModalToInputs}
-                      keyboardType="number-pad"
-                    />
-                  </View>
-                </View>
+                    if (cycleError) {
+                      setCycleError(null);
+                    }
+                  }}
+                  showForecast
+                  cycleLengthOptions={settingsCycleLengthOptions}
+                  periodLengthOptions={settingsPeriodLengthOptions}
+                />
 
                 {cycleError ? <AppText style={styles.error}>{cycleError}</AppText> : null}
               </ScrollView>
@@ -514,21 +391,48 @@ const createStyles = (colors: ThemeColors) =>
     card: {
       gap: spacing.md
     },
+    profileCard: {
+      padding: spacing.sm
+    },
+    profileTile: {
+      minHeight: 84,
+      borderRadius: radius.lg,
+      backgroundColor: colors.surfaceMuted,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md
+    },
+    profileBadge: {
+      width: 52,
+      height: 52,
+      borderRadius: radius.full,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    profileBadgeText: {
+      color: colors.surface
+    },
+    profileTileText: {
+      flex: 1,
+      gap: spacing.xs
+    },
+    profileTileAction: {
+      width: 34,
+      height: 34,
+      borderRadius: radius.full,
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center"
+    },
     cycleOverviewCard: {
       gap: spacing.md,
       backgroundColor: colors.surface
     },
     fieldBlock: {
       gap: spacing.xs
-    },
-    input: {
-      minHeight: 50,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.md,
-      backgroundColor: colors.surface,
-      color: colors.textPrimary,
-      paddingHorizontal: spacing.md
     },
     cycleOverviewHeader: {
       flexDirection: "row",
@@ -615,145 +519,6 @@ const createStyles = (colors: ThemeColors) =>
       paddingTop: spacing.md,
       paddingBottom: spacing.lg,
       backgroundColor: colors.surface
-    },
-    calendarHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between"
-    },
-    calendarNavButton: {
-      minWidth: 52
-    },
-    weekdayRow: {
-      flexDirection: "row",
-      marginBottom: spacing.xs
-    },
-    weekdayCell: {
-      flex: 1,
-      alignItems: "center"
-    },
-    weekdayLabel: {
-      textAlign: "center"
-    },
-    calendarGrid: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.md,
-      overflow: "hidden",
-      backgroundColor: colors.surface
-    },
-    calendarWeekRow: {
-      flexDirection: "row"
-    },
-    calendarDayCell: {
-      flex: 1,
-      aspectRatio: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      position: "relative",
-      backgroundColor: colors.surface
-    },
-    calendarDayCellBorder: {
-      borderRightWidth: 1,
-      borderRightColor: colors.border
-    },
-    calendarDayRowBorder: {
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border
-    },
-    calendarDayOutsideMonth: {
-      backgroundColor: colors.surfaceMuted
-    },
-    periodFill: {
-      position: "absolute",
-      top: 6,
-      bottom: 6,
-      left: 0,
-      right: 0,
-      backgroundColor: colors.sage
-    },
-    periodFillStart: {
-      left: 6,
-      borderTopLeftRadius: radius.sm,
-      borderBottomLeftRadius: radius.sm
-    },
-    periodFillEnd: {
-      right: 6,
-      borderTopRightRadius: radius.sm,
-      borderBottomRightRadius: radius.sm
-    },
-    nextPeriodFill: {
-      position: "absolute",
-      top: 9,
-      bottom: 9,
-      left: 0,
-      right: 0,
-      backgroundColor: menstrualColors.surfaceMuted,
-      borderWidth: 1,
-      borderColor: menstrualColors.border
-    },
-    nextPeriodFillStart: {
-      left: 7,
-      borderTopLeftRadius: radius.sm,
-      borderBottomLeftRadius: radius.sm
-    },
-    nextPeriodFillEnd: {
-      right: 7,
-      borderTopRightRadius: radius.sm,
-      borderBottomRightRadius: radius.sm
-    },
-    ovulationFill: {
-      position: "absolute",
-      top: 12,
-      bottom: 12,
-      left: 0,
-      right: 0,
-      backgroundColor: ovulationColors.sage
-    },
-    ovulationFillStart: {
-      left: 10,
-      borderTopLeftRadius: radius.full,
-      borderBottomLeftRadius: radius.full
-    },
-    ovulationFillEnd: {
-      right: 10,
-      borderTopRightRadius: radius.full,
-      borderBottomRightRadius: radius.full
-    },
-    dayNumberWrap: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
-      alignItems: "center",
-      justifyContent: "center"
-    },
-    dayNumberWrapSelected: {
-      backgroundColor: colors.primary
-    },
-    dayNumberText: {
-      color: colors.textPrimary
-    },
-    calendarDayTextMuted: {
-      color: colors.textMuted
-    },
-    calendarDayTextInPeriod: {
-      color: colors.primary
-    },
-    calendarDayTextInNextPeriod: {
-      color: menstrualColors.primary
-    },
-    calendarDayTextInOvulation: {
-      color: ovulationColors.primary
-    },
-    calendarDayTextSelected: {
-      color: colors.surface
-    },
-    row: {
-      flexDirection: "row",
-      gap: spacing.sm
-    },
-    halfField: {
-      flex: 1
     },
     actionRow: {
       flexDirection: "row",

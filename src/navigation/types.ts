@@ -1,11 +1,12 @@
-﻿export type AuthStackParamList = {
+export type AuthStackParamList = {
   Welcome: undefined;
   SignIn: undefined;
 };
 
 export type OnboardingStackParamList = {
-  CycleSetup: undefined;
+  Intro: undefined;
   TrainingGoals: undefined;
+  CycleSetup: undefined;
 };
 
 export type MainTabParamList = {
@@ -13,6 +14,11 @@ export type MainTabParamList = {
   Workouts: undefined;
   Progress: undefined;
   Settings: undefined;
+};
+
+export type SettingsStackParamList = {
+  SettingsHome: undefined;
+  ProfileSettings: undefined;
 };
 
 export type RootStackParamList = {

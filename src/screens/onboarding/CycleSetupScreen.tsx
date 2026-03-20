@@ -1,132 +1,101 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMemo } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppButton } from "@/components/AppButton";
 import { AppCard } from "@/components/AppCard";
 import { AppText } from "@/components/AppText";
+import { CycleTrackingEditor } from "@/components/CycleTrackingEditor";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { useCycleSetupScreen } from "@/features/onboarding/hooks/useCycleSetupScreen";
+import { useOnboardingStore } from "@/store/onboardingStore";
 import { useThemeColors } from "@/theme/ThemeProvider";
-import { radius, spacing, type ThemeColors } from "@/theme/tokens";
-import { toIsoDate } from "@/utils/date";
+import { spacing, type ThemeColors } from "@/theme/tokens";
+import { isValidIsoDate, toIsoDate } from "@/utils/date";
 
 import type { OnboardingStackParamList } from "@/navigation/types";
 
-const schema = z.object({
-  last_period_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
-  cycle_length_days: z.number().min(15).max(60),
-  period_length_days: z.number().min(1).max(15)
-});
-
-type FormValues = z.infer<typeof schema>;
-
 type Props = NativeStackScreenProps<OnboardingStackParamList, "CycleSetup">;
-
-const cycleOptions = [24, 26, 28, 30, 32];
-const periodOptions = [3, 4, 5, 6, 7];
 
 export function CycleSetupScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { saveSettings, loading } = useCycleSetupScreen();
+  const { completeOnboarding, loading, error } = useCycleSetupScreen();
+  const lastPeriodDate = useOnboardingStore((state) => state.lastPeriodDate);
+  const cycleLengthDays = useOnboardingStore((state) => state.cycleLengthDays);
+  const periodLengthDays = useOnboardingStore((state) => state.periodLengthDays);
+  const setDraft = useOnboardingStore((state) => state.setDraft);
 
-  const { watch, setValue, register, handleSubmit, formState } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      last_period_date: toIsoDate(new Date()),
-      cycle_length_days: 28,
-      period_length_days: 5
+  const hasValidDate = isValidIsoDate(lastPeriodDate);
+  const hasValidLengths = periodLengthDays < cycleLengthDays;
+
+  async function handleComplete(): Promise<void> {
+    if (!hasValidDate || !hasValidLengths) {
+      return;
     }
-  });
 
-  register("last_period_date");
+    await completeOnboarding({
+      last_period_date: lastPeriodDate,
+      cycle_length_days: cycleLengthDays,
+      period_length_days: periodLengthDays
+    });
+  }
 
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
       <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
         <MaterialIcons name="arrow-back" size={24} color={colors.primarySoft} />
         <AppText variant="overline" muted>
-          STEP 1 OF 3
+          STEP 3 OF 3
         </AppText>
       </Pressable>
 
       <View style={styles.header}>
-        <AppText variant="h2">Understand your cycle</AppText>
+        <AppText variant="h2">Add cycle details</AppText>
         <AppText variant="subtitle" muted>
-          To give you the best predictions and personalized workouts, we need a few details about your rhythm.
+          A rough estimate is enough. You can update these dates whenever your cycle changes.
         </AppText>
       </View>
 
       <AppCard style={styles.formCard}>
-        <AppText variant="bodyStrong">Last period start date</AppText>
-        <TextInput
-          value={watch("last_period_date")}
-          onChangeText={(value) => setValue("last_period_date", value, { shouldValidate: true })}
-          style={styles.input}
-          placeholder="YYYY-MM-DD"
+        <CycleTrackingEditor
+          value={{ lastPeriodDate, cycleLengthDays, periodLengthDays }}
+          onChange={(patch) => setDraft(patch)}
         />
-
-        <AppText variant="bodyStrong">Average cycle length</AppText>
-        <View style={styles.chipRow}>
-          {cycleOptions.map((option) => (
-            <Pressable
-              key={option}
-              onPress={() => setValue("cycle_length_days", option, { shouldValidate: true })}
-              style={[styles.chip, watch("cycle_length_days") === option ? styles.chipActive : undefined]}
-            >
-              <AppText variant="caption" style={watch("cycle_length_days") === option ? styles.chipActiveText : undefined}>
-                {option} days
-              </AppText>
-            </Pressable>
-          ))}
-        </View>
-
-        <AppText variant="caption" muted>
-          From the first day of one period to the first day of the next.
-        </AppText>
-
-        <AppText variant="bodyStrong">Average period length</AppText>
-        <View style={styles.chipRow}>
-          {periodOptions.map((option) => (
-            <Pressable
-              key={option}
-              onPress={() => setValue("period_length_days", option, { shouldValidate: true })}
-              style={[styles.chip, watch("period_length_days") === option ? styles.chipActive : undefined]}
-            >
-              <AppText variant="caption" style={watch("period_length_days") === option ? styles.chipActiveText : undefined}>
-                {option} days
-              </AppText>
-            </Pressable>
-          ))}
-        </View>
       </AppCard>
 
       <AppCard style={styles.tipCard}>
         <View style={styles.tipRow}>
-          <MaterialIcons name="info" size={18} color={colors.primarySoft} />
+          <MaterialIcons name="favorite-border" size={18} color={colors.primarySoft} />
           <AppText variant="body" muted style={styles.tipText}>
-            Your data is encrypted and used only to personalize your health insights.
+            CycleFit uses this information to soften intensity around low-energy days and time harder sessions when recovery usually feels better.
           </AppText>
         </View>
       </AppCard>
 
-      {formState.errors.last_period_date?.message ? <AppText style={styles.error}>{formState.errors.last_period_date.message}</AppText> : null}
+      {!hasValidDate ? <AppText style={styles.error}>Use YYYY-MM-DD for the date.</AppText> : null}
+      {!hasValidLengths ? <AppText style={styles.error}>Period length needs to be shorter than cycle length.</AppText> : null}
+      {error ? <AppText style={styles.error}>{error}</AppText> : null}
 
       <AppButton
-        label={loading ? "Saving..." : "Continue"}
-        onPress={handleSubmit(async (values) => {
-          await saveSettings(values);
-          navigation.navigate("TrainingGoals");
-        })}
+        label={loading ? "Finishing setup..." : "Finish onboarding"}
+        onPress={() => void handleComplete()}
         rightSlot={<MaterialIcons name="arrow-forward" size={20} color={colors.surface} />}
       />
 
-      <AppButton label="I'm not sure, use defaults" variant="ghost" onPress={() => navigation.navigate("TrainingGoals")} />
+      <AppButton
+        label="Use recommended defaults"
+        variant="ghost"
+        onPress={() => {
+          const today = new Date();
+          setDraft({
+            lastPeriodDate: toIsoDate(today),
+            cycleLengthDays: 28,
+            periodLengthDays: 5
+          });
+        }}
+      />
     </ScreenContainer>
   );
 }
@@ -149,43 +118,12 @@ const createStyles = (colors: ThemeColors) =>
       gap: spacing.md,
       backgroundColor: colors.surfaceMuted
     },
-    input: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.md,
-      minHeight: 50,
-      backgroundColor: colors.surface,
-      paddingHorizontal: spacing.lg
-    },
-    chipRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: spacing.sm
-    },
-    chip: {
-      paddingHorizontal: spacing.md,
-      minHeight: 38,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.md,
-      backgroundColor: colors.surface
-    },
-    chipActive: {
-      backgroundColor: colors.sage,
-      borderColor: colors.sage
-    },
-    chipActiveText: {
-      color: colors.primary
-    },
     tipCard: {
-      backgroundColor: colors.surface,
-      borderStyle: "dashed"
+      backgroundColor: colors.surface
     },
     tipRow: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       gap: spacing.md
     },
     tipText: {

@@ -1,103 +1,105 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Image, Pressable, StyleSheet, View } from "react-native";
 import { useMemo, useState } from "react";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 
 import { AppButton } from "@/components/AppButton";
+import { AppCard } from "@/components/AppCard";
 import { AppText } from "@/components/AppText";
+import { GymPreferencesForm } from "@/components/GymPreferencesForm";
 import { ScreenContainer } from "@/components/ScreenContainer";
-import { updateProfile } from "@/services/supabase/profileService";
+import { useOnboardingStore } from "@/store/onboardingStore";
 import { useThemeColors } from "@/theme/ThemeProvider";
 import { radius, spacing, type ThemeColors } from "@/theme/tokens";
 
 import type { OnboardingStackParamList } from "@/navigation/types";
 
-const bikeUri =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuDrNXqo-wvrEXASXJBye9NCwsJ7I5d4VllN2axlj_3u-CLmuwlOLeZ9WqvrbC5_4iyMjrnQrAvdkvtk8Z73NpieMvX3h1WRNP-E_Toxko6Rg4vpG5BARkTrqYWEkNZ_78Kq90qm0GVrMpAxAqSHpBMjXAd0j1O69WFvKai6D52cO7KTefdZuceVYIADlAlUMqrzOCwZTq0-er2EjFRj5t37I9g28OU0oJ4o50RUpa9Yjwywi1MX3Xw2rv8Z6gDiW4MqdPEIKv8uzlU";
-
 type Props = NativeStackScreenProps<OnboardingStackParamList, "TrainingGoals">;
-
-const levels = ["beginner", "intermediate", "advanced"] as const;
-const durations = ["15 mins", "30 mins", "45+ mins"] as const;
 
 export function TrainingGoalsScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [level, setLevel] = useState<(typeof levels)[number]>("beginner");
-  const [duration, setDuration] = useState<(typeof durations)[number]>("30 mins");
-  const [saving, setSaving] = useState(false);
+  const displayName = useOnboardingStore((state) => state.displayName);
+  const fitnessLevel = useOnboardingStore((state) => state.fitnessLevel);
+  const goal = useOnboardingStore((state) => state.goal);
+  const weeklyTrainingDays = useOnboardingStore((state) => state.weeklyTrainingDays);
+  const availableWorkoutTime = useOnboardingStore((state) => state.availableWorkoutTime);
+  const equipmentAccess = useOnboardingStore((state) => state.equipmentAccess);
+  const setDraft = useOnboardingStore((state) => state.setDraft);
+  const [formError, setFormError] = useState<string | null>(null);
+  const selectedEquipment = equipmentAccess[0] ?? null;
+
+  function handleContinue(): void {
+    if (displayName.trim().length < 2) {
+      setFormError("Add a display name so your plan feels personal from the start.");
+      return;
+    }
+
+    if (!selectedEquipment) {
+      setFormError("Choose home or gym equipment so recommendations match your setup.");
+      return;
+    }
+
+    if (equipmentAccess.length !== 1) {
+      setDraft({ equipmentAccess: [selectedEquipment] });
+    }
+
+    setFormError(null);
+    navigation.navigate("CycleSetup");
+  }
 
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
-      <Pressable onPress={() => navigation.goBack()}>
-        <AppText variant="subtitle" muted>
-          Back
+      <Pressable onPress={() => navigation.goBack()} style={styles.topRow}>
+        <AppText variant="overline" muted>
+          STEP 2 OF 3
         </AppText>
       </Pressable>
 
-      <AppText variant="h2" style={styles.title}>
-        Your training goals
-      </AppText>
-
-      <View style={styles.section}>
-        <AppText variant="overline" muted>
-          EXPERIENCE LEVEL
+      <View style={styles.header}>
+        <AppText variant="h2">Build your rider profile</AppText>
+        <AppText variant="subtitle" muted>
+          These answers shape your starting recommendations, weekly rhythm, and equipment-aware workout suggestions.
         </AppText>
-        <View style={styles.optionRow}>
-          {levels.map((option) => (
-            <Pressable key={option} onPress={() => setLevel(option)} style={[styles.option, level === option ? styles.optionActive : undefined]}>
-              <AppText variant="bodyStrong" style={level === option ? styles.optionActiveText : styles.optionText}>
-                {option[0].toUpperCase() + option.slice(1)}
-              </AppText>
-            </Pressable>
-          ))}
-        </View>
       </View>
 
-      <View style={styles.section}>
-        <AppText variant="overline" muted>
-          TIME AVAILABLE
-        </AppText>
-        <View style={styles.optionRow}>
-          {durations.map((option) => (
-            <Pressable
-              key={option}
-              onPress={() => setDuration(option)}
-              style={[styles.option, duration === option ? styles.optionActive : undefined]}
-            >
-              <AppText variant="bodyStrong" style={duration === option ? styles.optionActiveText : styles.optionText}>
-                {option}
-              </AppText>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.heroWrap}>
-        <Image source={{ uri: bikeUri }} style={styles.hero} />
-        <View style={styles.heroTag}>
-          <AppText variant="caption" style={styles.heroTagText}>
-            Personalized routines
+      <AppCard style={styles.card}>
+        <View style={styles.fieldBlock}>
+          <AppText variant="overline" muted>
+            WHAT SHOULD WE CALL YOU?
           </AppText>
+          <TextInput
+            value={displayName}
+            onChangeText={(value) => {
+              setDraft({ displayName: value });
+              if (formError) {
+                setFormError(null);
+              }
+            }}
+            placeholder="Your name"
+            placeholderTextColor={colors.textMuted}
+            style={styles.input}
+          />
         </View>
-      </View>
+        <GymPreferencesForm
+          value={{
+            fitnessLevel,
+            goal,
+            weeklyTrainingDays,
+            availableWorkoutTime,
+            equipmentAccess
+          }}
+          onChange={(patch) => {
+            setDraft(patch);
+            if (patch.equipmentAccess && formError) {
+              setFormError(null);
+            }
+          }}
+        />
+      </AppCard>
 
-      <AppButton
-        label={saving ? "Saving..." : "Continue"}
-        onPress={async () => {
-          setSaving(true);
-          await updateProfile({
-            display_name: "Athlete",
-            goal: `Time available: ${duration}`,
-            fitness_level: level
-          });
-          setSaving(false);
-          navigation.getParent()?.getParent()?.navigate("Main");
-        }}
-      />
+      {formError ? <AppText style={styles.error}>{formError}</AppText> : null}
 
-      <AppText variant="caption" muted style={styles.note}>
-        You can change these later in settings
-      </AppText>
+      <AppButton label="Continue to cycle setup" onPress={handleContinue} />
     </ScreenContainer>
   );
 }
@@ -108,60 +110,28 @@ const createStyles = (colors: ThemeColors) =>
       paddingTop: spacing.md,
       gap: spacing.lg
     },
-    title: {
-      color: colors.primarySoft
+    topRow: {
+      alignSelf: "flex-start"
     },
-    section: {
-      gap: spacing.md
-    },
-    optionRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
+    header: {
       gap: spacing.sm
     },
-    option: {
-      minWidth: 108,
-      borderRadius: radius.md,
+    card: {
+      gap: spacing.lg
+    },
+    fieldBlock: {
+      gap: spacing.sm
+    },
+    input: {
+      minHeight: 52,
       borderWidth: 1,
       borderColor: colors.border,
+      borderRadius: radius.md,
       backgroundColor: colors.surface,
-      minHeight: 42,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: spacing.md
+      color: colors.textPrimary,
+      paddingHorizontal: spacing.lg
     },
-    optionActive: {
-      backgroundColor: colors.sage,
-      borderColor: colors.sage
-    },
-    optionText: {
-      color: colors.textSecondary
-    },
-    optionActiveText: {
-      color: colors.primary
-    },
-    heroWrap: {
-      borderRadius: radius.lg,
-      overflow: "hidden",
-      position: "relative"
-    },
-    hero: {
-      width: "100%",
-      height: 180
-    },
-    heroTag: {
-      position: "absolute",
-      left: spacing.lg,
-      bottom: spacing.lg,
-      backgroundColor: "rgba(247,245,242,0.9)",
-      borderRadius: radius.full,
-      paddingVertical: spacing.xs,
-      paddingHorizontal: spacing.md
-    },
-    heroTagText: {
-      color: colors.primary
-    },
-    note: {
-      textAlign: "center"
+    error: {
+      color: colors.error
     }
   });

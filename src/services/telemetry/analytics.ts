@@ -1,7 +1,9 @@
 ﻿import { logger } from "@/services/telemetry/logger";
 
 export type AnalyticsEvent =
+  | "signup_started"
   | "signup_complete"
+  | "onboarding_completed"
   | "cycle_settings_saved"
   | "recommendation_viewed"
   | "workout_started"

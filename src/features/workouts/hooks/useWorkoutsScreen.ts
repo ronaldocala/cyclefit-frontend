@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 
@@ -13,6 +13,7 @@ import {
 import { demoPremiumWorkouts, demoUserWorkouts } from "@/services/demo/demoData";
 import { listPremiumWorkouts } from "@/services/supabase/premiumService";
 import { getCycleSettingsState } from "@/services/supabase/cycleService";
+import { getOnboardingPreferences } from "@/services/supabase/onboardingService";
 import { getProfile } from "@/services/supabase/profileService";
 import { listUserWorkouts } from "@/services/supabase/workoutsService";
 import { asyncStorageService } from "@/services/storage/asyncStorage";
@@ -49,7 +50,10 @@ export function useWorkoutsScreen() {
   const isDemoMode = useDemoMode();
   const demoProfile = useDemoStore((state) => state.profile);
   const demoCycleState = useDemoStore((state) => state.cycleState);
+  const demoOnboardingPreferences = useDemoStore((state) => state.onboardingPreferences);
   const [filters, setFilters] = useState<WorkoutBrowseFilters | null>(null);
+  const previousProfileExperienceRef = useRef<FitnessLevel>(DEFAULT_FILTERS.experience);
+  const previousPreferredWorkoutLengthRef = useRef<WorkoutLengthFilter>(DEFAULT_FILTERS.length);
 
   const profileQuery = useQuery({
     queryKey: ["profile"],
@@ -60,6 +64,12 @@ export function useWorkoutsScreen() {
   const cycleQuery = useQuery({
     queryKey: ["cycleSettings"],
     queryFn: getCycleSettingsState,
+    enabled: !isDemoMode
+  });
+
+  const onboardingPreferencesQuery = useQuery({
+    queryKey: ["onboardingPreferences"],
+    queryFn: getOnboardingPreferences,
     enabled: !isDemoMode
   });
 
@@ -76,6 +86,9 @@ export function useWorkoutsScreen() {
   });
 
   const profileExperience = (isDemoMode ? demoProfile.fitness_level : profileQuery.data?.fitness_level) ?? DEFAULT_FILTERS.experience;
+  const preferredWorkoutLength =
+    (isDemoMode ? demoOnboardingPreferences.available_workout_time : onboardingPreferencesQuery.data?.available_workout_time) ??
+    DEFAULT_FILTERS.length;
   const cycleSettings = isDemoMode ? demoCycleState.settings : (cycleQuery.data?.settings ?? null);
   const cycleSummary = useCyclePhase(cycleSettings);
   const currentPhase = cycleSummary?.phase ?? "menstrual";
@@ -97,11 +110,14 @@ export function useWorkoutsScreen() {
         return;
       }
 
+      const { experience: _storedExperience, length: _storedLength, ...storedIndependentFilters } = storedFilters ?? {};
+
       setFilters({
         ...DEFAULT_FILTERS,
         phase: currentPhase,
         experience: profileExperience,
-        ...storedFilters
+        length: preferredWorkoutLength,
+        ...storedIndependentFilters
       });
     }
 
@@ -110,7 +126,37 @@ export function useWorkoutsScreen() {
     return () => {
       isMounted = false;
     };
-  }, [currentPhase, cycleQuery.isLoading, filters, isDemoMode, profileExperience, profileQuery.isLoading]);
+  }, [currentPhase, cycleQuery.isLoading, filters, isDemoMode, onboardingPreferencesQuery.isLoading, preferredWorkoutLength, profileExperience, profileQuery.isLoading]);
+
+  useEffect(() => {
+    if (!filters) {
+      previousProfileExperienceRef.current = profileExperience;
+      previousPreferredWorkoutLengthRef.current = preferredWorkoutLength;
+      return;
+    }
+
+    const previousProfileExperience = previousProfileExperienceRef.current;
+    const previousPreferredWorkoutLength = previousPreferredWorkoutLengthRef.current;
+    const nextPatch: Partial<WorkoutBrowseFilters> = {};
+
+    if (profileExperience !== previousProfileExperience && filters.experience === previousProfileExperience) {
+      nextPatch.experience = profileExperience;
+    }
+
+    if (preferredWorkoutLength !== previousPreferredWorkoutLength && filters.length === previousPreferredWorkoutLength) {
+      nextPatch.length = preferredWorkoutLength;
+    }
+
+    previousProfileExperienceRef.current = profileExperience;
+    previousPreferredWorkoutLengthRef.current = preferredWorkoutLength;
+
+    if (Object.keys(nextPatch).length > 0) {
+      persistFilters({
+        ...filters,
+        ...nextPatch
+      });
+    }
+  }, [filters, preferredWorkoutLength, profileExperience]);
 
   function persistFilters(nextFilters: WorkoutBrowseFilters) {
     setFilters(nextFilters);
@@ -132,7 +178,8 @@ export function useWorkoutsScreen() {
     persistFilters({
       ...DEFAULT_FILTERS,
       phase: currentPhase,
-      experience: profileExperience
+      experience: profileExperience,
+      length: preferredWorkoutLength
     });
   }
 
@@ -174,6 +221,7 @@ export function useWorkoutsScreen() {
     filters,
     currentPhase,
     profileExperience,
+    preferredWorkoutLength,
     userWorkouts,
     premiumWorkouts,
     referenceWorkouts,
@@ -182,6 +230,11 @@ export function useWorkoutsScreen() {
     resetFilters,
     loading:
       filters === null ||
-      (!isDemoMode && (profileQuery.isLoading || cycleQuery.isLoading || userWorkoutsQuery.isLoading || premiumWorkoutsQuery.isLoading))
+      (!isDemoMode &&
+        (profileQuery.isLoading ||
+          cycleQuery.isLoading ||
+          onboardingPreferencesQuery.isLoading ||
+          userWorkoutsQuery.isLoading ||
+          premiumWorkoutsQuery.isLoading))
   };
 }

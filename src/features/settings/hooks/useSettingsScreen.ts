@@ -1,15 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { CycleSettingsState, Profile } from "@/api/types";
+import type { CycleSettingsState, OnboardingPreferences, Profile } from "@/api/types";
 import { openCustomerCenter, restorePurchases } from "@/services/revenuecat/revenueCatService";
 import { getCycleSettingsState, saveCycleSettings } from "@/services/supabase/cycleService";
 import type { SaveCycleSettingsInput } from "@/services/supabase/cycleService";
+import { getOnboardingPreferences, saveOnboardingPreferences } from "@/services/supabase/onboardingService";
+import type { SaveOnboardingPreferencesInput } from "@/services/supabase/onboardingService";
 import { deleteAccount } from "@/services/supabase/premiumService";
 import { getProfile, updateProfile } from "@/services/supabase/profileService";
 import { useDemoStore } from "@/store/demoStore";
 import { useDemoMode } from "@/utils/demoMode";
 
 type UpdateProfileInput = Parameters<typeof updateProfile>[0];
+type SaveTrainingPreferencesInput = {
+  profile: Pick<UpdateProfileInput, "goal" | "fitness_level">;
+  onboarding: SaveOnboardingPreferencesInput;
+};
 
 function createEmptyCycleState(): CycleSettingsState {
   return {
@@ -24,8 +30,10 @@ export function useSettingsScreen() {
   const isDemoMode = useDemoMode();
   const demoProfileState = useDemoStore((state) => state.profile);
   const demoCycleState = useDemoStore((state) => state.cycleState);
+  const demoOnboardingPreferences = useDemoStore((state) => state.onboardingPreferences);
   const setDemoProfile = useDemoStore((state) => state.setProfile);
   const setDemoCycleState = useDemoStore((state) => state.setCycleState);
+  const setDemoOnboardingPreferences = useDemoStore((state) => state.setOnboardingPreferences);
 
   const profileQuery = useQuery({
     queryKey: ["profile"],
@@ -36,6 +44,12 @@ export function useSettingsScreen() {
   const cycleQuery = useQuery({
     queryKey: ["cycleSettings"],
     queryFn: getCycleSettingsState,
+    enabled: !isDemoMode
+  });
+
+  const onboardingPreferencesQuery = useQuery({
+    queryKey: ["onboardingPreferences"],
+    queryFn: getOnboardingPreferences,
     enabled: !isDemoMode
   });
 
@@ -50,6 +64,24 @@ export function useSettingsScreen() {
     mutationFn: saveCycleSettings,
     onSuccess: (cycleState) => {
       queryClient.setQueryData(["cycleSettings"], cycleState);
+    }
+  });
+
+  const updateTrainingPreferencesMutation = useMutation({
+    mutationFn: async (input: SaveTrainingPreferencesInput) => {
+      const [nextProfile, nextOnboardingPreferences] = await Promise.all([
+        updateProfile(input.profile),
+        saveOnboardingPreferences(input.onboarding)
+      ]);
+
+      return {
+        profile: nextProfile,
+        onboardingPreferences: nextOnboardingPreferences
+      };
+    },
+    onSuccess: ({ profile, onboardingPreferences }) => {
+      queryClient.setQueryData(["profile"], profile);
+      queryClient.setQueryData(["onboardingPreferences"], onboardingPreferences);
     }
   });
 
@@ -81,6 +113,20 @@ export function useSettingsScreen() {
     return setDemoCycleState(input);
   }
 
+  async function saveTrainingPreferencesAction(input: SaveTrainingPreferencesInput): Promise<{
+    profile: Profile;
+    onboardingPreferences: OnboardingPreferences;
+  }> {
+    if (!isDemoMode) {
+      return updateTrainingPreferencesMutation.mutateAsync(input);
+    }
+
+    return {
+      profile: setDemoProfile(input.profile),
+      onboardingPreferences: setDemoOnboardingPreferences(input.onboarding)
+    };
+  }
+
   async function restorePurchasesAction(): Promise<boolean> {
     if (!isDemoMode) {
       return restoreMutation.mutateAsync();
@@ -107,15 +153,18 @@ export function useSettingsScreen() {
 
   return {
     profile: isDemoMode ? demoProfileState : (profileQuery.data ?? null),
+    onboardingPreferences: isDemoMode ? demoOnboardingPreferences : (onboardingPreferencesQuery.data ?? null),
     cycleState,
     cycleSettings: cycleState.settings,
-    loading: !isDemoMode && (profileQuery.isLoading || cycleQuery.isLoading),
+    loading: !isDemoMode && (profileQuery.isLoading || cycleQuery.isLoading || onboardingPreferencesQuery.isLoading),
     updateProfile: updateProfileAction,
+    saveTrainingPreferences: saveTrainingPreferencesAction,
     updateCycleSettings: updateCycleSettingsAction,
     restorePurchases: restorePurchasesAction,
     openCustomerCenter: openCustomerCenterAction,
     deleteAccount: deleteAccountAction,
     savingProfile: !isDemoMode && updateProfileMutation.isPending,
+    savingTrainingPreferences: !isDemoMode && updateTrainingPreferencesMutation.isPending,
     savingCycleSettings: !isDemoMode && updateCycleMutation.isPending,
     restoring: !isDemoMode && restoreMutation.isPending,
     openingCustomerCenter: !isDemoMode && customerCenterMutation.isPending,

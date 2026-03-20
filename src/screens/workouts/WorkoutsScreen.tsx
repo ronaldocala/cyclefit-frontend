@@ -5,11 +5,11 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, View } from "react-native";
 
-import type { FitnessLevel } from "@/api/types";
 import { AppButton } from "@/components/AppButton";
 import { AppCard } from "@/components/AppCard";
 import { AppText } from "@/components/AppText";
 import { ScreenContainer } from "@/components/ScreenContainer";
+import { experienceOptions, workoutTimeOptions } from "@/features/onboarding/preferenceOptions";
 import { useWorkoutsScreen, type WorkoutBrowseFilters } from "@/features/workouts/hooks/useWorkoutsScreen";
 import { useThemeColors } from "@/theme/ThemeProvider";
 import { radius, spacing, type ThemeColors } from "@/theme/tokens";
@@ -27,11 +27,10 @@ type FilterOption<T extends string> = {
   value: T;
 };
 
-const experienceOptions: FilterOption<FitnessLevel>[] = [
-  { label: "Beginner", value: "beginner" },
-  { label: "Intermediate", value: "intermediate" },
-  { label: "Expert", value: "advanced" }
-];
+const experienceFilterOptions: FilterOption<WorkoutBrowseFilters["experience"]>[] = experienceOptions.map((option) => ({
+  label: option.label,
+  value: option.value
+}));
 
 const environmentOptions: FilterOption<WorkoutBrowseFilters["environment"]>[] = [
   { label: "All", value: "all" },
@@ -49,16 +48,18 @@ const phaseOptions: FilterOption<WorkoutBrowseFilters["phase"]>[] = [
 
 const lengthOptions: FilterOption<WorkoutBrowseFilters["length"]>[] = [
   { label: "All", value: "all" },
-  { label: "Short", value: "short" },
-  { label: "Medium", value: "medium" },
-  { label: "Long", value: "long" }
+  ...workoutTimeOptions.map((option) => ({
+    label: option.label,
+    value: option.value
+  }))
 ];
 
 const lengthModalOptions: FilterOption<WorkoutBrowseFilters["length"]>[] = [
   { label: "All", value: "all" },
-  { label: "Short (under 20 min)", value: "short" },
-  { label: "Medium (20-40 min)", value: "medium" },
-  { label: "Long (40+ min)", value: "long" }
+  ...workoutTimeOptions.map((option) => ({
+    label: `${option.label} (${option.description.replace("Usually ", "").replace(".", "")})`,
+    value: option.value
+  }))
 ];
 
 const intensityOptions: FilterOption<WorkoutBrowseFilters["intensity"]>[] = [
@@ -70,9 +71,9 @@ const intensityOptions: FilterOption<WorkoutBrowseFilters["intensity"]>[] = [
 
 const menuLabels: Record<Exclude<FilterMenuId, null>, string> = {
   phase: "Menstrual Phase",
-  experience: "Experience",
+  experience: "Experience Level",
   environment: "Equipment",
-  length: "Length",
+  length: "Available Time",
   intensity: "Intensity"
 };
 
@@ -86,7 +87,7 @@ function getFilterChipValue<K extends Exclude<FilterMenuId, null>>(menu: K, filt
   }
 
   if (menu === "experience") {
-    return getOptionLabel(experienceOptions, filters.experience);
+    return getOptionLabel(experienceFilterOptions, filters.experience);
   }
 
   if (menu === "environment") {
@@ -94,7 +95,7 @@ function getFilterChipValue<K extends Exclude<FilterMenuId, null>>(menu: K, filt
   }
 
   if (menu === "length") {
-    return filters.length === "all" ? "Any length" : getOptionLabel(lengthOptions, filters.length);
+    return filters.length === "all" ? "Any time" : getOptionLabel(lengthOptions, filters.length);
   }
 
   return filters.intensity === "all" ? "Any intensity" : getOptionLabel(intensityOptions, filters.intensity);
@@ -114,35 +115,6 @@ function getOptionLabel<T extends string>(options: FilterOption<T>[], value: T):
   return options.find((option) => option.value === value)?.label ?? value;
 }
 
-function FilterField({
-  label,
-  value,
-  onPress
-}: {
-  label: string;
-  value: string;
-  onPress: () => void;
-}) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-
-  return (
-    <Pressable style={styles.filterField} onPress={onPress}>
-      <View style={styles.filterFieldValueRow}>
-        <View style={styles.filterFieldText}>
-          <AppText variant="caption" muted>
-            {label}
-          </AppText>
-          <AppText variant="bodyStrong" style={styles.filterFieldValue}>
-            {value}
-          </AppText>
-        </View>
-        <MaterialIcons name="arrow-drop-down" size={18} color={colors.textSecondary} />
-      </View>
-    </Pressable>
-  );
-}
-
 export function WorkoutsScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -151,6 +123,7 @@ export function WorkoutsScreen({ navigation }: Props) {
     filters,
     currentPhase,
     profileExperience,
+    preferredWorkoutLength,
     userWorkouts,
     premiumWorkouts,
     filteredReferenceWorkouts,
@@ -159,8 +132,6 @@ export function WorkoutsScreen({ navigation }: Props) {
     loading
   } = useWorkoutsScreen();
   const [activeMenu, setActiveMenu] = useState<FilterMenuId>(null);
-  const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
-  const [reopenFiltersModal, setReopenFiltersModal] = useState(false);
 
   const activeOptions = useMemo(() => {
     if (!activeMenu) {
@@ -172,7 +143,7 @@ export function WorkoutsScreen({ navigation }: Props) {
     }
 
     if (activeMenu === "experience") {
-      return experienceOptions;
+      return experienceFilterOptions;
     }
 
     if (activeMenu === "environment") {
@@ -188,24 +159,12 @@ export function WorkoutsScreen({ navigation }: Props) {
 
   const activeValue = activeMenu && filters ? filters[activeMenu] : null;
 
-  function openFilterOptions(menu: Exclude<FilterMenuId, null>) {
-    setReopenFiltersModal(true);
-    setIsFiltersModalOpen(false);
-    setActiveMenu(menu);
-  }
-
   function openQuickFilter(menu: Exclude<FilterMenuId, null>) {
-    setReopenFiltersModal(false);
     setActiveMenu(menu);
   }
 
   function closeFilterOptions() {
     setActiveMenu(null);
-
-    if (reopenFiltersModal) {
-      setIsFiltersModalOpen(true);
-      setReopenFiltersModal(false);
-    }
   }
 
   if (loading || !filters) {
@@ -215,6 +174,13 @@ export function WorkoutsScreen({ navigation }: Props) {
       </ScreenContainer>
     );
   }
+
+  const hasCustomFilters =
+    filters.phase !== currentPhase ||
+    filters.experience !== profileExperience ||
+    filters.environment !== "all" ||
+    filters.length !== preferredWorkoutLength ||
+    filters.intensity !== "all";
 
   return (
     <>
@@ -231,7 +197,8 @@ export function WorkoutsScreen({ navigation }: Props) {
             <View style={styles.cardHeaderText}>
               <AppText variant="subtitle">Cycle workout library</AppText>
               <AppText variant="caption" muted>
-                Starts from {getPhaseLabel(currentPhase)} phase and {getOptionLabel(experienceOptions, profileExperience)} level by default.
+                Starts from {getPhaseLabel(currentPhase)} phase, {getOptionLabel(experienceFilterOptions, profileExperience)} level, and{" "}
+                {getOptionLabel(lengthOptions, preferredWorkoutLength)} time by default.
               </AppText>
             </View>
             <View style={styles.headerRight}>
@@ -240,12 +207,6 @@ export function WorkoutsScreen({ navigation }: Props) {
                   {filteredReferenceWorkouts.length} results
                 </AppText>
               </View>
-              <Pressable style={styles.filterTriggerButton} onPress={() => setIsFiltersModalOpen(true)}>
-                <MaterialIcons name="tune" size={16} color={colors.primary} />
-                <AppText variant="caption" style={styles.filterTriggerText}>
-                  Filters
-                </AppText>
-              </Pressable>
             </View>
           </View>
 
@@ -258,6 +219,14 @@ export function WorkoutsScreen({ navigation }: Props) {
                 <MaterialIcons name="arrow-drop-down" size={16} color={colors.textSecondary} />
               </Pressable>
             ))}
+            {hasCustomFilters ? (
+              <Pressable style={styles.resetChip} onPress={resetFilters}>
+                <MaterialIcons name="restart-alt" size={14} color={colors.primary} />
+                <AppText variant="caption" style={styles.resetChipText}>
+                  Reset
+                </AppText>
+              </Pressable>
+            ) : null}
           </View>
         </AppCard>
 
@@ -399,52 +368,6 @@ export function WorkoutsScreen({ navigation }: Props) {
           </Pressable>
         </Pressable>
       </Modal>
-
-      <Modal visible={isFiltersModalOpen} transparent animationType="fade" onRequestClose={() => setIsFiltersModalOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setIsFiltersModalOpen(false)}>
-          <Pressable style={styles.modalCard} onPress={(event) => event.stopPropagation()}>
-            <View style={styles.modalHeader}>
-              <AppText variant="subtitle">Filters</AppText>
-              <Pressable style={styles.closeButton} onPress={() => setIsFiltersModalOpen(false)}>
-                <MaterialIcons name="close" size={18} color={colors.primary} />
-              </Pressable>
-            </View>
-
-            <View style={styles.filtersModalList}>
-              <FilterField label="Phase" value={getPhaseLabel(filters.phase)} onPress={() => openFilterOptions("phase")} />
-              <FilterField
-                label="Experience"
-                value={getOptionLabel(experienceOptions, filters.experience)}
-                onPress={() => openFilterOptions("experience")}
-              />
-              <FilterField
-                label="Equipment"
-                value={getOptionLabel(environmentOptions, filters.environment)}
-                onPress={() => openFilterOptions("environment")}
-              />
-              <FilterField
-                label="Length"
-                value={getOptionLabel(lengthOptions, filters.length)}
-                onPress={() => openFilterOptions("length")}
-              />
-              <FilterField
-                label="Intensity"
-                value={getOptionLabel(intensityOptions, filters.intensity)}
-                onPress={() => openFilterOptions("intensity")}
-              />
-            </View>
-
-            <View style={styles.filterActionsRow}>
-              <Pressable style={styles.resetFiltersButton} onPress={resetFilters}>
-                <MaterialIcons name="restart-alt" size={14} color={colors.primary} />
-                <AppText variant="caption" style={styles.resetFiltersText}>
-                  Reset filters
-                </AppText>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </>
   );
 }
@@ -487,20 +410,6 @@ const createStyles = (colors: ThemeColors) =>
     resultsBadgeText: {
       color: colors.primary
     },
-    filterTriggerButton: {
-      minHeight: 30,
-      paddingHorizontal: spacing.sm,
-      borderRadius: radius.sm,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surfaceMuted
-    },
-    filterTriggerText: {
-      color: colors.primary
-    },
     filterSummaryList: {
       marginTop: spacing.sm,
       flexDirection: "row",
@@ -524,45 +433,19 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.primary,
       flexShrink: 1
     },
-    filtersModalList: {
-      gap: spacing.sm
-    },
-    filterField: {
-      minHeight: 56,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.md,
-      backgroundColor: colors.surfaceMuted,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm
-    },
-    filterFieldValueRow: {
+    resetChip: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between"
-    },
-    filterFieldText: {
-      gap: 1,
-      flex: 1
-    },
-    filterFieldValue: {
-      color: colors.primary
-    },
-    filterActionsRow: {
-      marginTop: spacing.xs
-    },
-    resetFiltersButton: {
-      minHeight: 40,
-      borderRadius: radius.md,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
       gap: 6,
       borderWidth: 1,
       borderColor: colors.border,
-      backgroundColor: colors.surfaceMuted
+      borderRadius: radius.sm,
+      backgroundColor: colors.surfaceMuted,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 6,
+      minHeight: 32
     },
-    resetFiltersText: {
+    resetChipText: {
       color: colors.primary
     },
     workoutRow: {

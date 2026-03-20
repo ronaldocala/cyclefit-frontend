@@ -5,8 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/AppText";
+import { SettingsNavigator } from "@/navigation/SettingsNavigator";
 import { ProgressScreen } from "@/screens/progress/ProgressScreen";
-import { SettingsScreen } from "@/screens/settings/SettingsScreen";
 import { TodayScreen } from "@/screens/today/TodayScreen";
 import { WorkoutsScreen } from "@/screens/workouts/WorkoutsScreen";
 import { useAppStore } from "@/store/appStore";
@@ -121,7 +121,7 @@ export function MainTabNavigator() {
       <Tab.Screen name="Today" component={TodayScreen} options={{ tabBarLabel: "Home" }} />
       <Tab.Screen name="Progress" component={ProgressScreen} />
       <Tab.Screen name="Workouts" component={WorkoutsScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Settings" component={SettingsNavigator} />
     </Tab.Navigator>
   );
 }
