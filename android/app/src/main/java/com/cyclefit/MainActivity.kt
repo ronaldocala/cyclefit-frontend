@@ -1,4 +1,4 @@
-package com.cyclefit.app
+package com.cyclefit
 
 import android.os.Build
 import android.os.Bundle

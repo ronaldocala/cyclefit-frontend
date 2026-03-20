@@ -9,10 +9,10 @@ const config: ExpoConfig = {
   userInterfaceStyle: "light",
   ios: {
     supportsTablet: false,
-    bundleIdentifier: "com.cyclefit.app"
+    bundleIdentifier: "com.cyclefit"
   },
   android: {
-    package: "com.cyclefit.app"
+    package: "com.cyclefit"
   },
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
