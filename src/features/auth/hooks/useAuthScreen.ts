@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import { sendMagicLink, signInWithApple, signInWithGoogle } from "@/services/supabase/authService";
+import { sendEmailOtp, signInWithApple, signInWithGoogle, verifyEmailOtp } from "@/services/supabase/authService";
 import { trackEvent } from "@/services/telemetry/analytics";
 import { parseUnknownError } from "@/utils/errors";
 
@@ -8,25 +8,53 @@ export function useAuthScreen() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
-  const onSendMagicLink = useCallback(async (email: string) => {
+  const onSendEmailOtp = useCallback(async (email: string) => {
     setLoading(true);
     setError(null);
     setMessage(null);
 
     try {
-      await sendMagicLink(email);
-      setMessage(`Magic link sent to ${email}. Check inbox and spam.`);
-      trackEvent("signup_complete", {
-        method: "email_magic_link",
+      const normalizedEmail = email.trim().toLowerCase();
+      await sendEmailOtp(normalizedEmail);
+      setPendingEmail(normalizedEmail);
+      setMessage(`Code sent to ${normalizedEmail}.`);
+      trackEvent("signup_started", {
+        method: "email_otp",
         atIso: new Date().toISOString()
       });
     } catch (unknownError) {
-      const parsed = parseUnknownError(unknownError, "auth_magic_link_failed");
+      const parsed = parseUnknownError(unknownError, "auth_email_otp_failed");
       setError(parsed.message);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const onVerifyEmailOtp = useCallback(async (email: string, token: string) => {
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      await verifyEmailOtp(email, token);
+      trackEvent("signup_complete", {
+        method: "email_otp",
+        atIso: new Date().toISOString()
+      });
+    } catch (unknownError) {
+      const parsed = parseUnknownError(unknownError, "auth_email_verify_failed");
+      setError(parsed.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const onResetEmailFlow = useCallback(() => {
+    setPendingEmail(null);
+    setMessage(null);
+    setError(null);
   }, []);
 
   const onSignInWithApple = useCallback(async () => {
@@ -71,7 +99,10 @@ export function useAuthScreen() {
     loading,
     message,
     error,
-    onSendMagicLink,
+    pendingEmail,
+    onSendEmailOtp,
+    onVerifyEmailOtp,
+    onResetEmailFlow,
     onSignInWithApple,
     onSignInWithGoogle
   };

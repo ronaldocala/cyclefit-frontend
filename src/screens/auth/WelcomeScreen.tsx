@@ -47,7 +47,7 @@ export function WelcomeScreen({ navigation }: Props) {
 
       <View style={styles.actions}>
         <AppButton label="Get Started" onPress={() => navigation.navigate("SignIn")} />
-        <AppButton label="Learn More" variant="secondary" />
+        <AppButton label="Learn More" variant="secondary" onPress={() => navigation.navigate("SignIn")} />
       </View>
 
       <View style={styles.membersRow}>

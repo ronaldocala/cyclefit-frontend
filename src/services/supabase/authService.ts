@@ -45,19 +45,52 @@ function parseAuthCallbackParams(url: string): AuthCallbackParams {
   };
 }
 
-export async function sendMagicLink(email: string): Promise<void> {
-  const redirectUrl = Linking.createURL("/auth/callback");
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function normalizeOtp(token: string): string {
+  return token.replace(/\s+/g, "");
+}
+
+export async function sendEmailOtp(email: string): Promise<void> {
   const { error } = await supabase.auth.signInWithOtp({
-    email,
+    email: normalizeEmail(email),
     options: {
-      emailRedirectTo: redirectUrl,
       shouldCreateUser: true
     }
   });
 
   if (error) {
-    throw new AppError("auth_magic_link_error", error.message);
+    throw new AppError("auth_email_otp_error", error.message);
   }
+}
+
+export async function verifyEmailOtp(email: string, token: string): Promise<void> {
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedToken = normalizeOtp(token);
+
+  const primaryAttempt = await supabase.auth.verifyOtp({
+    email: normalizedEmail,
+    token: normalizedToken,
+    type: "email"
+  });
+
+  if (!primaryAttempt.error) {
+    return;
+  }
+
+  const signupAttempt = await supabase.auth.verifyOtp({
+    email: normalizedEmail,
+    token: normalizedToken,
+    type: "signup"
+  });
+
+  if (!signupAttempt.error) {
+    return;
+  }
+
+  throw new AppError("auth_email_verify_error", signupAttempt.error.message || primaryAttempt.error.message);
 }
 
 export async function signInWithApple(): Promise<void> {
