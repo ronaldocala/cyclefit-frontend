@@ -17,11 +17,15 @@ export function useAuthScreen() {
 
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      await sendEmailOtp(normalizedEmail);
+      const result = await sendEmailOtp(normalizedEmail);
       setPendingEmail(normalizedEmail);
-      setMessage(`Code sent to ${normalizedEmail}.`);
+      setMessage(
+        result.mode === "review"
+          ? `Review login enabled for ${normalizedEmail}. Enter the 4-digit review code.`
+          : `Code sent to ${normalizedEmail}.`
+      );
       trackEvent("signup_started", {
-        method: "email_otp",
+        method: result.mode === "review" ? "review_code" : "email_otp",
         atIso: new Date().toISOString()
       });
     } catch (unknownError) {

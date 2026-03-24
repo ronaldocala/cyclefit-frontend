@@ -8,6 +8,7 @@ import { AppCard } from "@/components/AppCard";
 import { AppText } from "@/components/AppText";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { useAuthScreen } from "@/features/auth/hooks/useAuthScreen";
+import { isReviewLoginCode, isReviewLoginEmail, REVIEW_LOGIN_CODE_LENGTH } from "@/services/supabase/authService";
 import { useAuthStore } from "@/store/authStore";
 import { useThemeColors } from "@/theme/ThemeProvider";
 import { radius, spacing, type ThemeColors } from "@/theme/tokens";
@@ -16,7 +17,11 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
-function isValidOtp(value: string): boolean {
+function isValidOtp(value: string, email: string): boolean {
+  if (isReviewLoginEmail(email)) {
+    return isReviewLoginCode(value);
+  }
+
   return /^\d{6,10}$/.test(value.replace(/\s+/g, ""));
 }
 
@@ -38,6 +43,7 @@ export function SignInScreen() {
   }, []);
 
   const activeEmail = pendingEmail ?? email.trim().toLowerCase();
+  const isReviewFlow = isReviewLoginEmail(activeEmail);
 
   async function handleSendCode(): Promise<void> {
     if (!isValidEmail(email)) {
@@ -56,8 +62,8 @@ export function SignInScreen() {
       return;
     }
 
-    if (!isValidOtp(otp)) {
-      setFormError("Enter the numeric code from your email.");
+    if (!isValidOtp(otp, pendingEmail)) {
+      setFormError(isReviewFlow ? `Enter the ${REVIEW_LOGIN_CODE_LENGTH}-digit review code.` : "Enter the numeric code from your email.");
       return;
     }
 
@@ -125,7 +131,9 @@ export function SignInScreen() {
                   <View style={styles.codeHeaderText}>
                     <AppText variant="bodyStrong">Enter your code</AppText>
                     <AppText variant="caption" muted>
-                      Supabase email OTP can be configured between 6 and 10 digits, so enter the full numeric code you received.
+                      {isReviewFlow
+                        ? `Use the ${REVIEW_LOGIN_CODE_LENGTH}-digit review code provided for App Review.`
+                        : "Supabase email OTP can be configured between 6 and 10 digits, so enter the full numeric code you received."}
                     </AppText>
                   </View>
                   <Pressable
@@ -141,11 +149,12 @@ export function SignInScreen() {
                 </View>
 
                 <TextInput
-                  placeholder="Enter code"
+                  placeholder={isReviewFlow ? "Enter 4-digit code" : "Enter code"}
                   value={otp}
                   keyboardType="number-pad"
                   editable={!loading}
-                  maxLength={10}
+                  autoCapitalize="none"
+                  maxLength={isReviewFlow ? REVIEW_LOGIN_CODE_LENGTH : 10}
                   onChangeText={(value) => setOtp(value.replace(/[^\d]/g, ""))}
                   placeholderTextColor={colors.textMuted}
                   style={[styles.input, styles.otpInput]}
@@ -159,7 +168,7 @@ export function SignInScreen() {
                 />
 
                 <AppButton
-                  label={loading ? "Please wait..." : "Send a new code"}
+                  label={loading ? "Please wait..." : isReviewFlow ? "Use review code again" : "Send a new code"}
                   variant="ghost"
                   disabled={loading}
                   onPress={() => void onSendEmailOtp(activeEmail)}

@@ -9,6 +9,9 @@ import { AppError } from "@/utils/errors";
 
 WebBrowser.maybeCompleteAuthSession();
 
+export const REVIEW_LOGIN_EMAIL = "test@user.com";
+export const REVIEW_LOGIN_CODE_LENGTH = 4;
+
 type AuthCallbackParams = {
   access_token?: string;
   refresh_token?: string;
@@ -53,7 +56,23 @@ function normalizeOtp(token: string): string {
   return token.replace(/\s+/g, "");
 }
 
-export async function sendEmailOtp(email: string): Promise<void> {
+export function isReviewLoginEmail(email: string): boolean {
+  return normalizeEmail(email) === REVIEW_LOGIN_EMAIL;
+}
+
+export function isReviewLoginCode(token: string): boolean {
+  return new RegExp(`^\\d{${REVIEW_LOGIN_CODE_LENGTH}}$`).test(normalizeOtp(token));
+}
+
+export type SendEmailOtpResult = {
+  mode: "email" | "review";
+};
+
+export async function sendEmailOtp(email: string): Promise<SendEmailOtpResult> {
+  if (isReviewLoginEmail(email)) {
+    return { mode: "review" };
+  }
+
   const { error } = await supabase.auth.signInWithOtp({
     email: normalizeEmail(email),
     options: {
@@ -64,9 +83,47 @@ export async function sendEmailOtp(email: string): Promise<void> {
   if (error) {
     throw new AppError("auth_email_otp_error", error.message);
   }
+
+  return { mode: "email" };
+}
+
+async function verifyReviewCode(email: string, token: string): Promise<void> {
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedToken = normalizeOtp(token);
+  const { data, error } = await supabase.functions.invoke<{ emailOtp?: string; verificationType?: string }>("review_login_code", {
+    method: "POST",
+    body: {
+      email: normalizedEmail,
+      code: normalizedToken
+    }
+  });
+
+  if (error || !data?.emailOtp) {
+    throw new AppError("auth_review_code_error", error?.message ?? "Review code login failed");
+  }
+
+  const verificationType = data.verificationType === "magiclink" ? "magiclink" : "email";
+  const verificationAttempt = await supabase.auth.verifyOtp({
+    email: normalizedEmail,
+    token: data.emailOtp,
+    type: verificationType
+  });
+
+  if (verificationAttempt.error) {
+    throw new AppError("auth_review_verify_error", verificationAttempt.error.message);
+  }
 }
 
 export async function verifyEmailOtp(email: string, token: string): Promise<void> {
+  if (isReviewLoginEmail(email)) {
+    if (!isReviewLoginCode(token)) {
+      throw new AppError("auth_review_code_invalid", `Enter the ${REVIEW_LOGIN_CODE_LENGTH}-digit review code.`);
+    }
+
+    await verifyReviewCode(email, token);
+    return;
+  }
+
   const normalizedEmail = normalizeEmail(email);
   const normalizedToken = normalizeOtp(token);
 

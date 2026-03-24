@@ -1,4 +1,5 @@
-﻿import type { WorkoutSession } from "@/api/types";
+import type { WorkoutSession } from "@/api/types";
+import { getRequiredUserId } from "@/services/supabase/authHelpers";
 import { supabase } from "@/services/supabase/client";
 import { AppError } from "@/utils/errors";
 
@@ -29,9 +30,11 @@ export async function listWorkoutSessions(limit = 50): Promise<WorkoutSession[]>
 }
 
 export async function createCompletedSession(input: SaveSessionInput): Promise<WorkoutSession> {
+  const userId = await getRequiredUserId();
   const { data, error } = await supabase
     .from("workout_sessions")
     .insert({
+      user_id: userId,
       user_workout_id: input.user_workout_id ?? null,
       source_type: input.source_type,
       source_id: input.source_id ?? null,

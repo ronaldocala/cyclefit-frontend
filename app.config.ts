@@ -9,7 +9,11 @@ const config: ExpoConfig = {
   userInterfaceStyle: "light",
   ios: {
     supportsTablet: false,
-    bundleIdentifier: "com.cyclefit"
+    bundleIdentifier: "com.cyclefit",
+    usesAppleSignIn: true,
+    config: {
+      usesNonExemptEncryption: false
+    }
   },
   android: {
     package: "com.cyclefit"
@@ -20,7 +24,10 @@ const config: ExpoConfig = {
     revenueCatAppleApiKey: process.env.EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY,
     revenueCatGoogleApiKey: process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY,
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-    demoMode: process.env.EXPO_PUBLIC_DEMO_MODE
+    demoMode: process.env.EXPO_PUBLIC_DEMO_MODE,
+    eas: {
+      projectId: "a59eafb9-df9a-4769-9f6c-5d7cc1824398"
+    }
   },
   plugins: [
     "expo-font",
