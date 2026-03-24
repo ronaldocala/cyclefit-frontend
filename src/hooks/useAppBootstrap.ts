@@ -6,9 +6,10 @@ import { syncCycleSettings } from "@/services/supabase/cycleService";
 import { syncDailyProgressLogs } from "@/services/supabase/dailyProgressLogService";
 import { syncOfflineQueue } from "@/services/sync/offlineQueue";
 import { logger } from "@/services/telemetry/logger";
-import { initSentry } from "@/services/telemetry/sentry";
+import { captureException, initSentry } from "@/services/telemetry/sentry";
 import { useAuthStore } from "@/store/authStore";
-import { env } from "@/utils/env";
+import { env, hasRequiredRuntimeConfig, missingRuntimeConfigKeys } from "@/utils/env";
+import { parseUnknownError } from "@/utils/errors";
 
 let sentryInitialized = false;
 
@@ -16,6 +17,7 @@ export function useAppBootstrap(): void {
   const setSession = useAuthStore((state) => state.setSession);
   const setLoading = useAuthStore((state) => state.setLoading);
   const setDevSkipLogin = useAuthStore((state) => state.setDevSkipLogin);
+  const setBootstrapError = useAuthStore((state) => state.setBootstrapError);
 
   useEffect(() => {
     if (!sentryInitialized) {
@@ -23,27 +25,63 @@ export function useAppBootstrap(): void {
       sentryInitialized = true;
     }
 
+    if (!hasRequiredRuntimeConfig) {
+      const message = `Missing required app configuration: ${missingRuntimeConfigKeys.join(", ")}.`;
+      logger.error(message);
+      setBootstrapError(message);
+      setLoading(false);
+      return;
+    }
+
+    setBootstrapError(null);
+
     if (env.demoMode) {
       setDevSkipLogin(true);
       return;
     }
 
-    void syncOfflineQueue();
-    void syncCycleSettings();
-    void syncDailyProgressLogs();
+    void syncOfflineQueue().catch((error) => {
+      logger.warn("Offline queue sync failed during bootstrap", { error: String(error) });
+    });
+    void syncCycleSettings().catch((error) => {
+      logger.warn("Cycle settings sync failed during bootstrap", { error: String(error) });
+    });
+    void syncDailyProgressLogs().catch((error) => {
+      logger.warn("Daily progress sync failed during bootstrap", { error: String(error) });
+    });
 
     async function initAuth(): Promise<void> {
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
+      try {
+        const {
+          data: { session }
+        } = await supabase.auth.getSession();
 
-      setSession(session);
-      setLoading(false);
+        setSession(session);
 
-      if (session?.user.id) {
-        void syncCycleSettings();
-        void syncDailyProgressLogs();
-        await configureRevenueCat(session.user.id);
+        if (session?.user.id) {
+          void syncCycleSettings().catch((error) => {
+            logger.warn("Cycle settings sync failed after session restore", { error: String(error) });
+          });
+          void syncDailyProgressLogs().catch((error) => {
+            logger.warn("Daily progress sync failed after session restore", { error: String(error) });
+          });
+
+          try {
+            await configureRevenueCat(session.user.id);
+          } catch (error) {
+            logger.warn("RevenueCat configure failed during bootstrap", { error: String(error) });
+          }
+        }
+      } catch (error) {
+        const parsedError = parseUnknownError(error, "app_bootstrap_failed");
+        logger.error("App bootstrap failed", {
+          code: parsedError.code,
+          error: parsedError.message
+        });
+        captureException(error);
+        setBootstrapError(parsedError.message);
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -60,14 +98,20 @@ export function useAppBootstrap(): void {
       setSession(session);
 
       if (session?.user.id) {
-        void syncCycleSettings();
-        void syncDailyProgressLogs();
-        void configureRevenueCat(session.user.id);
+        void syncCycleSettings().catch((error) => {
+          logger.warn("Cycle settings sync failed after auth state change", { error: String(error) });
+        });
+        void syncDailyProgressLogs().catch((error) => {
+          logger.warn("Daily progress sync failed after auth state change", { error: String(error) });
+        });
+        void configureRevenueCat(session.user.id).catch((error) => {
+          logger.warn("RevenueCat configure failed after auth state change", { error: String(error) });
+        });
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [setDevSkipLogin, setLoading, setSession]);
+  }, [setBootstrapError, setDevSkipLogin, setLoading, setSession]);
 }
