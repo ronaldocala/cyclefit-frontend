@@ -67,7 +67,10 @@ const secureStorageAdapter = {
   removeItem: secureStoreService.removeItem
 };
 
-export const supabase = createClient(resolveSupabaseUrl(env.supabaseUrl), env.supabaseAnonKey, {
+const fallbackSupabaseUrl = "https://placeholder.invalid";
+const fallbackSupabaseAnonKey = "missing-supabase-anon-key";
+
+export const supabase = createClient(resolveSupabaseUrl(env.supabaseUrl || fallbackSupabaseUrl), env.supabaseAnonKey || fallbackSupabaseAnonKey, {
   auth: {
     storage: secureStorageAdapter,
     autoRefreshToken: true,

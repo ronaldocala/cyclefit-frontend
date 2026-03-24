@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 
+import { AppText } from "@/components/AppText";
 import { usePremiumStatus } from "@/features/subscriptions/hooks/usePremiumStatus";
 import { AuthNavigator } from "@/navigation/AuthNavigator";
 import { MainTabNavigator } from "@/navigation/MainTabNavigator";
@@ -43,6 +44,7 @@ export function AppNavigator() {
   const session = useAuthStore((state) => state.session);
   const authLoading = useAuthStore((state) => state.loading);
   const devSkipLogin = useAuthStore((state) => state.devSkipLogin);
+  const bootstrapError = useAuthStore((state) => state.bootstrapError);
 
   const profileQuery = useQuery({
     queryKey: ["profile"],
@@ -63,6 +65,22 @@ export function AppNavigator() {
   });
 
   usePremiumStatus(Boolean(session));
+
+  if (bootstrapError) {
+    return (
+      <View style={styles.loading}>
+        <View style={styles.errorCard}>
+          <AppText variant="title">CycleFit+ couldn't start</AppText>
+          <AppText muted style={styles.errorText}>
+            {bootstrapError}
+          </AppText>
+          <AppText muted style={styles.errorText}>
+            Reinstall the latest TestFlight build after confirming the EAS public env vars are set for iOS.
+          </AppText>
+        </View>
+      </View>
+    );
+  }
 
   if (authLoading || (session && (profileQuery.isLoading || cycleQuery.isLoading || onboardingQuery.isLoading))) {
     return (
@@ -106,6 +124,20 @@ const createStyles = (colors: ThemeColors) =>
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.background
+      backgroundColor: colors.background,
+      padding: 24
+    },
+    errorCard: {
+      width: "100%",
+      maxWidth: 420,
+      padding: 20,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 12
+    },
+    errorText: {
+      color: colors.textSecondary
     }
   });
