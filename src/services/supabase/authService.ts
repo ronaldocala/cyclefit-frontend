@@ -2,7 +2,6 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 
-import { resetRevenueCatUser } from "@/services/revenuecat/revenueCatService";
 import { supabase } from "@/services/supabase/client";
 import { isDemoModeEnabled } from "@/utils/demoMode";
 import { AppError } from "@/utils/errors";
@@ -228,8 +227,6 @@ export async function signOut(): Promise<void> {
   if (error) {
     throw new AppError("auth_signout_error", error.message);
   }
-
-  await resetRevenueCatUser();
 }
 
 export async function getSession() {

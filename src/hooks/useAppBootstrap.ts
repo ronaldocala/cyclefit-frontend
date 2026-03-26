@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 
-import { configureRevenueCat } from "@/services/revenuecat/revenueCatService";
 import { supabase } from "@/services/supabase/client";
 import { syncCycleSettings } from "@/services/supabase/cycleService";
 import { syncDailyProgressLogs } from "@/services/supabase/dailyProgressLogService";
@@ -66,11 +65,6 @@ export function useAppBootstrap(): void {
             logger.warn("Daily progress sync failed after session restore", { error: String(error) });
           });
 
-          try {
-            await configureRevenueCat(session.user.id);
-          } catch (error) {
-            logger.warn("RevenueCat configure failed during bootstrap", { error: String(error) });
-          }
         }
       } catch (error) {
         const parsedError = parseUnknownError(error, "app_bootstrap_failed");
@@ -103,9 +97,6 @@ export function useAppBootstrap(): void {
         });
         void syncDailyProgressLogs().catch((error) => {
           logger.warn("Daily progress sync failed after auth state change", { error: String(error) });
-        });
-        void configureRevenueCat(session.user.id).catch((error) => {
-          logger.warn("RevenueCat configure failed after auth state change", { error: String(error) });
         });
       }
     });

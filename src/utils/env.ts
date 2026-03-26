@@ -3,8 +3,6 @@ import Constants from "expo-constants";
 type ExtraConfig = {
   supabaseUrl?: string;
   supabaseAnonKey?: string;
-  revenueCatAppleApiKey?: string;
-  revenueCatGoogleApiKey?: string;
   sentryDsn?: string;
   demoMode?: string | boolean;
 };
@@ -13,8 +11,6 @@ type RequiredStringKey = "supabaseUrl" | "supabaseAnonKey";
 type ProcessEnvKey =
   | "EXPO_PUBLIC_SUPABASE_URL"
   | "EXPO_PUBLIC_SUPABASE_ANON_KEY"
-  | "EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY"
-  | "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY"
   | "EXPO_PUBLIC_SENTRY_DSN"
   | "EXPO_PUBLIC_DEMO_MODE";
 
@@ -76,8 +72,6 @@ function readRequiredEnv(key: RequiredStringKey): string {
 export const env = {
   supabaseUrl: readRequiredEnv("supabaseUrl"),
   supabaseAnonKey: readRequiredEnv("supabaseAnonKey"),
-  revenueCatAppleApiKey: readOptionalString("revenueCatAppleApiKey", "EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY"),
-  revenueCatGoogleApiKey: readOptionalString("revenueCatGoogleApiKey", "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY"),
   sentryDsn: readOptionalString("sentryDsn", "EXPO_PUBLIC_SENTRY_DSN"),
   demoMode: readBooleanEnv(embeddedExtra.demoMode ?? readProcessEnv("EXPO_PUBLIC_DEMO_MODE"))
 };
