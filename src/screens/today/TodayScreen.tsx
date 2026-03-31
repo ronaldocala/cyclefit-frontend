@@ -76,15 +76,17 @@ export function TodayScreen({ navigation }: Props) {
         key: "ovulation",
         label: "Next ovulation",
         date: formatEuropeanDate(cycleSummary.nextOvulationDate),
-        countdown: describeCountdown(cycleSummary.daysUntilNextOvulation)
+        countdown: describeCountdown(cycleSummary.daysUntilNextOvulation),
+        days: cycleSummary.daysUntilNextOvulation
       },
       {
         key: "period",
         label: "Next period",
         date: formatEuropeanDate(cycleSummary.nextPeriodDate),
-        countdown: describeCountdown(cycleSummary.daysUntilNextPeriod)
+        countdown: describeCountdown(cycleSummary.daysUntilNextPeriod),
+        days: cycleSummary.daysUntilNextPeriod
       }
-    ];
+    ].sort((a, b) => a.days - b.days);
   }, [cycleSummary]);
 
   useEffect(() => {
@@ -155,20 +157,12 @@ export function TodayScreen({ navigation }: Props) {
           </AppText>
         </View>
         <AppText muted>{cycleSummary.trainingFocus}</AppText>
-        <View style={styles.forecastDivider} />
-        <AppText variant="overline" style={styles.forecastHeading}>
-          Coming Up
-        </AppText>
         <View style={styles.forecastGrid}>
           {forecastItems.map((item) => (
             <View key={item.key} style={styles.forecastItem}>
-              <AppText variant="caption" muted>
-                {item.label}
-              </AppText>
+              <AppText variant="caption" muted>{item.label}</AppText>
               <AppText variant="bodyStrong">{item.date}</AppText>
-              <AppText variant="caption" muted>
-                {item.countdown}
-              </AppText>
+              <AppText variant="caption" muted>{item.countdown}</AppText>
             </View>
           ))}
         </View>
@@ -410,14 +404,6 @@ const createStyles = (colors: ThemeColors) =>
       gap: spacing.sm,
       backgroundColor: colors.surfaceMuted
     },
-    forecastDivider: {
-      height: 1,
-      backgroundColor: colors.border,
-      opacity: 0.65
-    },
-    forecastHeading: {
-      color: colors.primary
-    },
     forecastGrid: {
       flexDirection: "row",
       gap: spacing.sm
@@ -425,8 +411,8 @@ const createStyles = (colors: ThemeColors) =>
     forecastItem: {
       flex: 1,
       gap: 2,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
       borderRadius: radius.md,
       backgroundColor: colors.surface,
       borderWidth: 1,
