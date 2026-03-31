@@ -24,6 +24,10 @@ export type CycleSettings = {
   last_period_date: string;
   cycle_length_days: number;
   period_length_days: number;
+  historical_last_period_date: string | null;
+  historical_cycle_length_days: number | null;
+  historical_period_length_days: number | null;
+  future_phase_start_date: string | null;
   created_at: string;
   updated_at: string;
 };

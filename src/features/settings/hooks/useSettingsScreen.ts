@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { CycleSettingsState, OnboardingPreferences, Profile } from "@/api/types";
-import { openCustomerCenter, restorePurchases } from "@/services/revenuecat/revenueCatService";
 import { getCycleSettingsState, saveCycleSettings } from "@/services/supabase/cycleService";
 import type { SaveCycleSettingsInput } from "@/services/supabase/cycleService";
 import { getOnboardingPreferences, saveOnboardingPreferences } from "@/services/supabase/onboardingService";
@@ -85,14 +84,6 @@ export function useSettingsScreen() {
     }
   });
 
-  const restoreMutation = useMutation({
-    mutationFn: restorePurchases
-  });
-
-  const customerCenterMutation = useMutation({
-    mutationFn: openCustomerCenter
-  });
-
   const accountDeleteMutation = useMutation({
     mutationFn: deleteAccount
   });
@@ -127,22 +118,6 @@ export function useSettingsScreen() {
     };
   }
 
-  async function restorePurchasesAction(): Promise<boolean> {
-    if (!isDemoMode) {
-      return restoreMutation.mutateAsync();
-    }
-
-    return true;
-  }
-
-  async function openCustomerCenterAction(): Promise<boolean> {
-    if (!isDemoMode) {
-      return customerCenterMutation.mutateAsync();
-    }
-
-    return true;
-  }
-
   async function deleteAccountAction(): Promise<void> {
     if (!isDemoMode) {
       return accountDeleteMutation.mutateAsync();
@@ -160,14 +135,10 @@ export function useSettingsScreen() {
     updateProfile: updateProfileAction,
     saveTrainingPreferences: saveTrainingPreferencesAction,
     updateCycleSettings: updateCycleSettingsAction,
-    restorePurchases: restorePurchasesAction,
-    openCustomerCenter: openCustomerCenterAction,
     deleteAccount: deleteAccountAction,
     savingProfile: !isDemoMode && updateProfileMutation.isPending,
     savingTrainingPreferences: !isDemoMode && updateTrainingPreferencesMutation.isPending,
     savingCycleSettings: !isDemoMode && updateCycleMutation.isPending,
-    restoring: !isDemoMode && restoreMutation.isPending,
-    openingCustomerCenter: !isDemoMode && customerCenterMutation.isPending,
     deletingAccount: !isDemoMode && accountDeleteMutation.isPending
   };
 }

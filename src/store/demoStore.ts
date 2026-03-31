@@ -11,7 +11,15 @@ type DemoStoreState = {
   cycleState: CycleSettingsState;
   onboardingPreferences: OnboardingPreferences;
   setProfile: (patch: Partial<Profile>) => Profile;
-  setCycleState: (input: { last_period_date: string; cycle_length_days: number; period_length_days: number }) => CycleSettingsState;
+  setCycleState: (input: {
+    last_period_date: string;
+    cycle_length_days: number;
+    period_length_days: number;
+    historical_last_period_date?: string | null;
+    historical_cycle_length_days?: number | null;
+    historical_period_length_days?: number | null;
+    future_phase_start_date?: string | null;
+  }) => CycleSettingsState;
   setOnboardingPreferences: (
     patch: Partial<Pick<OnboardingPreferences, "equipment_access" | "weekly_training_days" | "riding_environment" | "available_workout_time">>
   ) => OnboardingPreferences;

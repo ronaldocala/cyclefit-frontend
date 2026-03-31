@@ -8,7 +8,7 @@ import { AppCard } from "@/components/AppCard";
 import { AppText } from "@/components/AppText";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { useSettingsScreen } from "@/features/settings/hooks/useSettingsScreen";
-import type { PremiumState } from "@/services/revenuecat/revenueCatService";
+import type { PremiumState } from "@/services/premium/premiumAccessService";
 import { signOut } from "@/services/supabase/authService";
 import { useAppStore } from "@/store/appStore";
 import { useAuthStore } from "@/store/authStore";
@@ -50,7 +50,7 @@ function formatSubscriptionDetails(isPremium: boolean, premiumState: PremiumStat
     default:
       return {
         label: "Free",
-        detail: "Upgrade or restore purchases at any time."
+        detail: "Premium purchases are temporarily unavailable."
       };
   }
 }
@@ -100,8 +100,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
   const session = useAuthStore((state) => state.session);
   const isPremium = useAppStore((state) => state.isPremium);
   const premiumState = useAppStore((state) => state.premiumState);
-  const { profile, loading, restorePurchases, openCustomerCenter, deletingAccount, deleteAccount, restoring, openingCustomerCenter } =
-    useSettingsScreen();
+  const { profile, loading, deletingAccount, deleteAccount } = useSettingsScreen();
 
   const sessionEmail = session?.user.email ?? null;
   const username = profile?.display_name?.trim() || sessionEmail?.split("@")[0] || "Not set";
@@ -137,15 +136,6 @@ export function ProfileSettingsScreen({ navigation }: Props) {
           <DetailRow label="Username" value={username} />
           <DetailRow label="Email" value={email} />
           <DetailRow label="Subscription" value={subscription.label} detail={subscription.detail} />
-        </View>
-        <View style={styles.sectionDivider} />
-        <View style={styles.actionGroup}>
-          <AppButton
-            label={openingCustomerCenter ? "Opening..." : "Manage subscription"}
-            variant="outline"
-            onPress={() => void openCustomerCenter()}
-          />
-          <AppButton label={restoring ? "Restoring..." : "Restore purchases"} onPress={() => void restorePurchases()} />
         </View>
         <View style={styles.sectionDivider} />
         <View style={styles.actionGroup}>

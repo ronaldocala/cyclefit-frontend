@@ -20,6 +20,10 @@ export const demoCycleSettings: CycleSettings = {
   last_period_date: todayIso,
   cycle_length_days: 28,
   period_length_days: 5,
+  historical_last_period_date: null,
+  historical_cycle_length_days: null,
+  historical_period_length_days: null,
+  future_phase_start_date: null,
   created_at: nowIso,
   updated_at: nowIso
 };

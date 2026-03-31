@@ -249,9 +249,9 @@ export function CycleTrackingEditor({
       periodLength: safePeriodLength,
       rangeStart: calendarRangeStart,
       rangeEnd: calendarRangeEnd,
-      minDate: splitStartDate ?? today
+      minDate: splitStartDate ?? undefined
     });
-  }, [calendarRangeEnd, calendarRangeStart, forecastEnabled, safeCycleLength, safePeriodLength, selectedStartDate, splitStartDate, today]);
+  }, [calendarRangeEnd, calendarRangeStart, forecastEnabled, safeCycleLength, safePeriodLength, selectedStartDate, splitStartDate]);
   const forecastPeriodDateKeys = useMemo(() => {
     const dates = new Set<string>(historicalPhaseDates.periodDates);
 
@@ -313,7 +313,6 @@ export function CycleTrackingEditor({
               const dayKey = toIsoDate(day);
               const previousDayKey = toIsoDate(addDays(day, -1));
               const nextDayKey = toIsoDate(addDays(day, 1));
-              const isSelectedStart = isSameDay(day, selectedStartDate);
               const isToday = isSameDay(day, today);
               const isInPeriod = selectedPeriodDateKeys.has(dayKey);
               const isInForecastPeriod = forecastPeriodDateKeys.has(dayKey);
@@ -363,7 +362,7 @@ export function CycleTrackingEditor({
                     />
                   ) : null}
 
-                  <View style={[styles.dayNumberWrap, isSelectedStart ? styles.dayNumberWrapSelected : undefined]}>
+                  <View style={[styles.dayNumberWrap, isToday ? styles.dayNumberWrapToday : undefined]}>
                     <AppText
                       variant="caption"
                       style={[
@@ -372,14 +371,12 @@ export function CycleTrackingEditor({
                         isInPeriod ? styles.calendarDayTextInPeriod : undefined,
                         isInForecastPeriod ? styles.calendarDayTextInNextPeriod : undefined,
                         isInOvulation ? styles.calendarDayTextInOvulation : undefined,
-                        isSelectedStart ? styles.calendarDayTextSelected : undefined
+                        isToday ? styles.calendarDayTextToday : undefined
                       ]}
                     >
                       {format(day, "d")}
                     </AppText>
                   </View>
-
-                  {isToday ? <View style={[styles.todayDot, isSelectedStart ? styles.todayDotSelected : undefined]} /> : null}
                 </Pressable>
               );
             })}
@@ -507,7 +504,7 @@ const createStyles = (colors: ThemeColors, menstrualColors: ThemeColors, ovulati
       bottom: 6,
       left: 0,
       right: 0,
-      backgroundColor: colors.sage
+      backgroundColor: menstrualColors.sage
     },
     periodFillStart: {
       left: 6,
@@ -564,19 +561,8 @@ const createStyles = (colors: ThemeColors, menstrualColors: ThemeColors, ovulati
       alignItems: "center",
       justifyContent: "center"
     },
-    dayNumberWrapSelected: {
+    dayNumberWrapToday: {
       backgroundColor: colors.primary
-    },
-    todayDot: {
-      position: "absolute",
-      bottom: 8,
-      width: 5,
-      height: 5,
-      borderRadius: radius.full,
-      backgroundColor: colors.primary
-    },
-    todayDotSelected: {
-      backgroundColor: colors.surface
     },
     dayNumberText: {
       color: colors.textPrimary
@@ -585,7 +571,7 @@ const createStyles = (colors: ThemeColors, menstrualColors: ThemeColors, ovulati
       color: colors.textMuted
     },
     calendarDayTextInPeriod: {
-      color: colors.primary
+      color: menstrualColors.primary
     },
     calendarDayTextInNextPeriod: {
       color: menstrualColors.primary
@@ -593,7 +579,7 @@ const createStyles = (colors: ThemeColors, menstrualColors: ThemeColors, ovulati
     calendarDayTextInOvulation: {
       color: ovulationColors.primary
     },
-    calendarDayTextSelected: {
+    calendarDayTextToday: {
       color: colors.onPrimary
     },
     selectField: {

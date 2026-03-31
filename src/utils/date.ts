@@ -22,3 +22,11 @@ export function isValidIsoDate(value: string): boolean {
   const parsed = new Date(`${value}T00:00:00`);
   return isValid(parsed) && toIsoDate(parsed) === value;
 }
+
+export function formatEuropeanDate(value: string): string {
+  if (!isValidIsoDate(value)) {
+    return value;
+  }
+
+  return format(new Date(`${value}T00:00:00`), "dd.MM.yyyy");
+}

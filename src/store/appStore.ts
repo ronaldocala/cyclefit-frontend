@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import type { RootStackParamList } from "@/navigation/types";
-import type { PremiumState } from "@/services/revenuecat/revenueCatService";
+import type { PremiumState } from "@/services/premium/premiumAccessService";
 
 type WorkoutSourceType = RootStackParamList["WorkoutSession"]["sourceType"];
 

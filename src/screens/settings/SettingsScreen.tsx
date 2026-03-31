@@ -1,21 +1,21 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { LayoutAnimation, Platform, Pressable, StyleSheet, UIManager, View } from "react-native";
 
 import type { EquipmentAccess, FitnessLevel, WeeklyTrainingDays, WorkoutTimePreference } from "@/api/types";
 import { AppButton } from "@/components/AppButton";
 import { AppCard } from "@/components/AppCard";
 import { AppText } from "@/components/AppText";
-import { CycleTrackingEditor } from "@/components/CycleTrackingEditor";
+import { CycleTrackingEditor, type CycleTrackingDraft } from "@/components/CycleTrackingEditor";
 import { GymPreferencesForm } from "@/components/GymPreferencesForm";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { computeCycleSummary } from "@/features/cycle/cycleCalculator";
-import { goalOptions } from "@/features/onboarding/preferenceOptions";
+import { equipmentOptions, goalOptions } from "@/features/onboarding/preferenceOptions";
 import { useSettingsScreen } from "@/features/settings/hooks/useSettingsScreen";
 import { useThemeColors } from "@/theme/ThemeProvider";
 import { radius, spacing, type ThemeColors } from "@/theme/tokens";
-import { toIsoDate } from "@/utils/date";
+import { formatEuropeanDate, toIsoDate } from "@/utils/date";
 
 import type { SettingsStackParamList } from "@/navigation/types";
 
@@ -24,6 +24,31 @@ const DEFAULT_EQUIPMENT_ACCESS: EquipmentAccess = "home_equipment";
 const DEFAULT_WORKOUT_TIME: WorkoutTimePreference = "medium";
 const settingsCycleLengthOptions = Array.from({ length: 46 }, (_, index) => 15 + index);
 const settingsPeriodLengthOptions = Array.from({ length: 15 }, (_, index) => 1 + index);
+
+function buildCalendarHistoryValue(
+  settings:
+    | {
+        historical_last_period_date: string | null;
+        historical_cycle_length_days: number | null;
+        historical_period_length_days: number | null;
+      }
+    | null
+    | undefined
+): CycleTrackingDraft | null {
+  if (
+    !settings?.historical_last_period_date ||
+    !settings.historical_cycle_length_days ||
+    !settings.historical_period_length_days
+  ) {
+    return null;
+  }
+
+  return {
+    lastPeriodDate: settings.historical_last_period_date,
+    cycleLengthDays: settings.historical_cycle_length_days,
+    periodLengthDays: settings.historical_period_length_days
+  };
+}
 
 function formatSyncMessage(syncStatus: "synced" | "pending", lastSyncedAt: string | null): string {
   if (syncStatus === "pending") {
@@ -40,7 +65,6 @@ function formatSyncMessage(syncStatus: "synced" | "pending", lastSyncedAt: strin
 type Props = NativeStackScreenProps<SettingsStackParamList, "SettingsHome">;
 
 export function SettingsScreen({ navigation }: Props) {
-  const { height: windowHeight } = useWindowDimensions();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const {
@@ -65,19 +89,36 @@ export function SettingsScreen({ navigation }: Props) {
   const [draftEquipmentAccess, setDraftEquipmentAccess] = useState<EquipmentAccess[]>(
     onboardingPreferences?.equipment_access?.length ? onboardingPreferences.equipment_access : [DEFAULT_EQUIPMENT_ACCESS]
   );
-  const [isCycleModalOpen, setIsCycleModalOpen] = useState(false);
+  const [isGymPreferencesOpen, setIsGymPreferencesOpen] = useState(false);
   const [cycleError, setCycleError] = useState<string | null>(null);
   const [draftLastPeriodDate, setDraftLastPeriodDate] = useState(cycleSettings?.last_period_date ?? toIsoDate(new Date()));
   const [draftCycleLengthDays, setDraftCycleLengthDays] = useState(cycleSettings?.cycle_length_days ?? 28);
   const [draftPeriodLengthDays, setDraftPeriodLengthDays] = useState(cycleSettings?.period_length_days ?? 5);
-  const modalMaxHeight = Math.max(Math.min(windowHeight - spacing.xl * 2, 760), 360);
+  const [calendarHistoryValue, setCalendarHistoryValue] = useState<CycleTrackingDraft | null>(null);
+  const [futurePhaseStartDate, setFuturePhaseStartDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
 
   useEffect(() => {
     const nextDate = cycleSettings?.last_period_date ?? toIsoDate(new Date());
     setDraftLastPeriodDate(nextDate);
     setDraftCycleLengthDays(cycleSettings?.cycle_length_days ?? 28);
     setDraftPeriodLengthDays(cycleSettings?.period_length_days ?? 5);
-  }, [cycleSettings?.cycle_length_days, cycleSettings?.last_period_date, cycleSettings?.period_length_days]);
+    setCalendarHistoryValue(buildCalendarHistoryValue(cycleSettings));
+    setFuturePhaseStartDate(cycleSettings?.future_phase_start_date ?? null);
+  }, [
+    cycleSettings?.cycle_length_days,
+    cycleSettings?.future_phase_start_date,
+    cycleSettings?.historical_cycle_length_days,
+    cycleSettings?.historical_last_period_date,
+    cycleSettings?.historical_period_length_days,
+    cycleSettings?.last_period_date,
+    cycleSettings?.period_length_days
+  ]);
 
   useEffect(() => {
     setDraftFitnessLevel(profile?.fitness_level ?? "beginner");
@@ -100,9 +141,15 @@ export function SettingsScreen({ navigation }: Props) {
       return null;
     }
 
-    return computeCycleSummary(cycleSettings);
-  }, [cycleSettings]);
+    return computeCycleSummary({
+      ...cycleSettings,
+      last_period_date: draftLastPeriodDate,
+      cycle_length_days: draftCycleLengthDays,
+      period_length_days: draftPeriodLengthDays
+    });
+  }, [cycleSettings, draftCycleLengthDays, draftLastPeriodDate, draftPeriodLengthDays]);
   const selectedEquipment = draftEquipmentAccess[0] ?? DEFAULT_EQUIPMENT_ACCESS;
+  const selectedEquipmentLabel = equipmentOptions.find((option) => option.value === selectedEquipment)?.label ?? "Home equipment";
   const profileName = profile?.display_name?.trim() || "Your Profile";
   const profileInitials = profileName
     .split(/\s+/)
@@ -110,20 +157,6 @@ export function SettingsScreen({ navigation }: Props) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("") || "Y";
-
-  function openCycleModal(): void {
-    const nextDate = cycleSettings?.last_period_date ?? toIsoDate(new Date());
-    setDraftLastPeriodDate(nextDate);
-    setDraftCycleLengthDays(cycleSettings?.cycle_length_days ?? 28);
-    setDraftPeriodLengthDays(cycleSettings?.period_length_days ?? 5);
-    setCycleError(null);
-    setIsCycleModalOpen(true);
-  }
-
-  function closeCycleModal(): void {
-    setIsCycleModalOpen(false);
-    setCycleError(null);
-  }
 
   async function persistTrainingPreferences(
     patch: Partial<{
@@ -197,9 +230,37 @@ export function SettingsScreen({ navigation }: Props) {
     await updateCycleSettings({
       last_period_date: draftLastPeriodDate,
       cycle_length_days: nextCycleLength,
-      period_length_days: nextPeriodLength
+      period_length_days: nextPeriodLength,
+      historical_last_period_date: calendarHistoryValue?.lastPeriodDate ?? null,
+      historical_cycle_length_days: calendarHistoryValue?.cycleLengthDays ?? null,
+      historical_period_length_days: calendarHistoryValue?.periodLengthDays ?? null,
+      future_phase_start_date: futurePhaseStartDate
     });
-    closeCycleModal();
+  }
+
+  function handleTrackPeriodToday(): void {
+    const todayIso = toIsoDate(new Date());
+
+    if (draftLastPeriodDate === todayIso && (futurePhaseStartDate === null || futurePhaseStartDate === todayIso)) {
+      return;
+    }
+
+    setCalendarHistoryValue({
+      lastPeriodDate: draftLastPeriodDate,
+      cycleLengthDays: draftCycleLengthDays,
+      periodLengthDays: draftPeriodLengthDays
+    });
+    setFuturePhaseStartDate(todayIso);
+    setDraftLastPeriodDate(todayIso);
+
+    if (cycleError) {
+      setCycleError(null);
+    }
+  }
+
+  function toggleGymPreferences(): void {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsGymPreferencesOpen((current) => !current);
   }
 
   if (loading) {
@@ -250,134 +311,97 @@ export function SettingsScreen({ navigation }: Props) {
           ) : null}
         </View>
 
-        {summary ? (
-          <View style={styles.overviewGrid}>
-            <View style={styles.overviewCell}>
-              <AppText variant="caption" muted>
-                Day
-              </AppText>
-              <AppText variant="bodyStrong">{summary.dayInCycle}</AppText>
-            </View>
-            <View style={styles.overviewCell}>
-              <AppText variant="caption" muted>
-                Next period
-              </AppText>
-              <AppText variant="bodyStrong">{summary.nextPeriodDate}</AppText>
-            </View>
-            <View style={styles.overviewCell}>
-              <AppText variant="caption" muted>
-                Last logged
-              </AppText>
-              <AppText variant="bodyStrong">{cycleSettings?.last_period_date}</AppText>
-            </View>
-            <View style={styles.overviewCell}>
-              <AppText variant="caption" muted>
-                Length
-              </AppText>
-              <AppText variant="bodyStrong">
-                {cycleSettings?.cycle_length_days} / {cycleSettings?.period_length_days} days
-              </AppText>
-            </View>
-          </View>
-        ) : (
+        {!summary ? (
           <AppText muted>Add your cycle details to personalize training and recovery across the app.</AppText>
-        )}
+        ) : null}
 
-        <AppButton label="Change cycle" variant="outline" onPress={openCycleModal} />
+        <CycleTrackingEditor
+          value={{
+            lastPeriodDate: draftLastPeriodDate,
+            cycleLengthDays: draftCycleLengthDays,
+            periodLengthDays: draftPeriodLengthDays
+          }}
+          historyValue={calendarHistoryValue}
+          futurePhaseStartDate={futurePhaseStartDate}
+          onTrackPeriodToday={handleTrackPeriodToday}
+          onChange={(patch) => {
+            if (patch.lastPeriodDate !== undefined) {
+              setDraftLastPeriodDate(patch.lastPeriodDate);
+              setCalendarHistoryValue(null);
+              setFuturePhaseStartDate(null);
+            }
+
+            if (patch.cycleLengthDays !== undefined) {
+              setDraftCycleLengthDays(patch.cycleLengthDays);
+            }
+
+            if (patch.periodLengthDays !== undefined) {
+              setDraftPeriodLengthDays(patch.periodLengthDays);
+            }
+
+            if (cycleError) {
+              setCycleError(null);
+            }
+          }}
+          showForecast
+          cycleLengthOptions={settingsCycleLengthOptions}
+          periodLengthOptions={settingsPeriodLengthOptions}
+        />
+
+        {summary ? (
+          <View style={styles.inlineMetaRow}>
+            <AppText variant="caption" muted>
+              Day {summary.dayInCycle}
+            </AppText>
+            <AppText variant="caption" muted>
+              Next period {formatEuropeanDate(summary.nextPeriodDate)}
+            </AppText>
+          </View>
+        ) : null}
+
+        {cycleError ? <AppText style={styles.error}>{cycleError}</AppText> : null}
+
+        <AppButton label={savingCycleSettings ? "Saving..." : "Save cycle"} onPress={() => void handleCycleSave()} />
       </AppCard>
 
       <AppCard style={styles.card}>
-        <AppText variant="subtitle">Gym Preferences</AppText>
-        <GymPreferencesForm
-          value={{
-            fitnessLevel: draftFitnessLevel,
-            goal: draftGoal,
-            weeklyTrainingDays: draftWeeklyTrainingDays,
-            availableWorkoutTime: draftWorkoutTime,
-            equipmentAccess: draftEquipmentAccess
-          }}
-          onChange={(patch) => {
-            void persistTrainingPreferences({
-              fitnessLevel: patch.fitnessLevel,
-              goal: patch.goal,
-              weeklyTrainingDays: patch.weeklyTrainingDays,
-              workoutTime: patch.availableWorkoutTime,
-              equipmentAccess: patch.equipmentAccess
-            });
-          }}
-        />
-      </AppCard>
-
-      <Modal
-        visible={isCycleModalOpen}
-        transparent
-        animationType="fade"
-        presentationStyle="overFullScreen"
-        statusBarTranslucent
-        onRequestClose={closeCycleModal}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={closeCycleModal}>
-          <View style={styles.modalKeyboard}>
-            <Pressable style={[styles.modalCard, { maxHeight: modalMaxHeight }]} onPress={(event) => event.stopPropagation()}>
-              <View style={styles.modalHeader}>
-                <AppText variant="subtitle">Update cycle</AppText>
-                <Pressable style={styles.modalCloseButton} onPress={closeCycleModal}>
-                  <AppText variant="bodyStrong">Close</AppText>
-                </Pressable>
-              </View>
-
-              <ScrollView
-                style={styles.modalScroll}
-                contentContainerStyle={styles.modalScrollContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                <CycleTrackingEditor
-                  key={isCycleModalOpen ? "cycle-editor-open" : "cycle-editor-closed"}
-                  value={{
-                    lastPeriodDate: draftLastPeriodDate,
-                    cycleLengthDays: draftCycleLengthDays,
-                    periodLengthDays: draftPeriodLengthDays
-                  }}
-                  onChange={(patch) => {
-                    if (patch.lastPeriodDate !== undefined) {
-                      setDraftLastPeriodDate(patch.lastPeriodDate);
-                    }
-
-                    if (patch.cycleLengthDays !== undefined) {
-                      setDraftCycleLengthDays(patch.cycleLengthDays);
-                    }
-
-                    if (patch.periodLengthDays !== undefined) {
-                      setDraftPeriodLengthDays(patch.periodLengthDays);
-                    }
-
-                    if (cycleError) {
-                      setCycleError(null);
-                    }
-                  }}
-                  showForecast
-                  cycleLengthOptions={settingsCycleLengthOptions}
-                  periodLengthOptions={settingsPeriodLengthOptions}
-                />
-
-                {cycleError ? <AppText style={styles.error}>{cycleError}</AppText> : null}
-              </ScrollView>
-
-              <View style={styles.modalFooter}>
-                <View style={styles.actionRow}>
-                  <AppButton label="Cancel" variant="ghost" onPress={closeCycleModal} style={styles.actionButton} />
-                  <AppButton
-                    label={savingCycleSettings ? "Saving..." : "Save"}
-                    onPress={() => void handleCycleSave()}
-                    style={styles.actionButton}
-                  />
-                </View>
-              </View>
-            </Pressable>
+        <Pressable style={styles.sectionToggle} onPress={toggleGymPreferences}>
+          <View style={styles.sectionToggleText}>
+            <AppText variant="subtitle">Gym Preferences</AppText>
+            <AppText variant="caption" muted>
+              {draftGoal} | {draftWeeklyTrainingDays} days/week | {selectedEquipmentLabel}
+            </AppText>
+          </View>
+          <View style={styles.sectionToggleAction}>
+            <MaterialIcons
+              name={isGymPreferencesOpen ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+              size={22}
+              color={colors.primary}
+            />
           </View>
         </Pressable>
-      </Modal>
+
+        {isGymPreferencesOpen ? (
+          <GymPreferencesForm
+            value={{
+              fitnessLevel: draftFitnessLevel,
+              goal: draftGoal,
+              weeklyTrainingDays: draftWeeklyTrainingDays,
+              availableWorkoutTime: draftWorkoutTime,
+              equipmentAccess: draftEquipmentAccess
+            }}
+            onChange={(patch) => {
+              void persistTrainingPreferences({
+                fitnessLevel: patch.fitnessLevel,
+                goal: patch.goal,
+                weeklyTrainingDays: patch.weeklyTrainingDays,
+                workoutTime: patch.availableWorkoutTime,
+                equipmentAccess: patch.equipmentAccess
+              });
+            }}
+          />
+        ) : null}
+      </AppCard>
     </ScreenContainer>
   );
 }
@@ -413,7 +437,7 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: "center"
     },
     profileBadgeText: {
-      color: colors.surface
+      color: colors.onPrimary
     },
     profileTileText: {
       flex: 1,
@@ -430,9 +454,6 @@ const createStyles = (colors: ThemeColors) =>
     cycleOverviewCard: {
       gap: spacing.md,
       backgroundColor: colors.surface
-    },
-    fieldBlock: {
-      gap: spacing.xs
     },
     cycleOverviewHeader: {
       flexDirection: "row",
@@ -455,79 +476,31 @@ const createStyles = (colors: ThemeColors) =>
     phaseBadgeText: {
       color: colors.primary
     },
-    overviewGrid: {
+    inlineMetaRow: {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: spacing.sm
     },
-    overviewCell: {
-      width: "47%",
-      gap: 2,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.md,
-      backgroundColor: colors.surfaceMuted,
-      padding: spacing.md
-    },
-    modalBackdrop: {
-      flex: 1,
-      backgroundColor: "rgba(15, 23, 42, 0.24)",
-      justifyContent: "center",
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md
-    },
-    modalKeyboard: {
-      flex: 1,
-      width: "100%",
+    sectionToggle: {
+      flexDirection: "row",
+      justifyContent: "space-between",
       alignItems: "center",
-      justifyContent: "center"
-    },
-    modalCard: {
-      width: "100%",
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.lg,
-      backgroundColor: colors.surface,
-      overflow: "hidden"
-    },
-    modalScroll: {
-      width: "100%",
-      flexGrow: 0,
-      flexShrink: 1
-    },
-    modalScrollContent: {
-      paddingHorizontal: spacing.lg,
-      paddingBottom: spacing.lg,
       gap: spacing.md
     },
-    modalHeader: {
-      flexDirection: "row",
+    sectionToggleText: {
+      flex: 1,
+      gap: spacing.xs
+    },
+    sectionToggleAction: {
+      width: 28,
+      height: 28,
+      borderRadius: radius.full,
       alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.lg,
-      paddingBottom: spacing.md
-    },
-    modalCloseButton: {
-      paddingVertical: spacing.xs,
-      paddingHorizontal: spacing.sm
-    },
-    modalFooter: {
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.lg,
-      backgroundColor: colors.surface
-    },
-    actionRow: {
-      flexDirection: "row",
-      gap: spacing.sm
-    },
-    actionButton: {
-      flex: 1
+      justifyContent: "center",
+      backgroundColor: colors.surfaceMuted
     },
     error: {
       color: colors.error
     }
   });
+

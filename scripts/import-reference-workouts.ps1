@@ -83,6 +83,12 @@ function Get-DocxLines {
   }
 }
 
+function Test-IsWorkoutMarker {
+  param([string]$Value)
+
+  return (Normalize-Text $Value) -match "^(Gym )?Workout\s+\d+(\s+of\s+\d+)?$"
+}
+
 function ConvertTo-Level {
   param([string]$Value)
 
@@ -195,6 +201,28 @@ function ConvertTo-SectionEntries {
   return $entries
 }
 
+function Resolve-ReferenceDocumentPath {
+  param(
+    [string]$ReferencesRoot,
+    [string]$Pattern
+  )
+
+  $matches = @(
+    Get-ChildItem -Path $ReferencesRoot -File -Filter $Pattern |
+      Sort-Object -Property LastWriteTime, Name -Descending
+  )
+
+  if ($matches.Count -eq 0) {
+    throw "Reference document not found for pattern: $Pattern"
+  }
+
+  if ($matches.Count -gt 1) {
+    Write-Warning "Multiple files matched $Pattern. Using $($matches[0].Name)."
+  }
+
+  return $matches[0].FullName
+}
+
 function Get-SectionLabel {
   param([string]$SectionId)
 
@@ -288,7 +316,7 @@ function Parse-WorkoutDocument {
   $workouts = New-Object System.Collections.Generic.List[object]
 
   for ($index = 0; $index -lt $lines.Count; $index += 1) {
-    if ($lines[$index] -notmatch "^(Gym )?Workout\s+\d+\s+of\s+\d+$") {
+    if (-not (Test-IsWorkoutMarker $lines[$index])) {
       continue
     }
 
@@ -313,21 +341,21 @@ function Parse-WorkoutDocument {
     }
 
     $cursor = $index + 6
-    :sectionLoop while ($cursor -lt $lines.Count -and $lines[$cursor] -notmatch "^(Gym )?Workout\s+\d+\s+of\s+\d+$") {
+    :sectionLoop while ($cursor -lt $lines.Count -and -not (Test-IsWorkoutMarker $lines[$cursor])) {
       $line = Normalize-Text $lines[$cursor]
 
       switch -Regex ($line) {
-        "^(Warm-Up|WARM-UP)$" {
+        "^Warm[- ]?Up$" {
           $sectionId = "warmup"
           $cursor += 1
           continue sectionLoop
         }
-        "^(Main Workout.*|MAIN WORKOUT)$" {
+        "^Main Workout.*$" {
           $sectionId = "main"
           $cursor += 1
           continue sectionLoop
         }
-        "^(Cool Down|COOL DOWN)$" {
+        "^Cool Down$" {
           $sectionId = "cooldown"
           $cursor += 1
           continue sectionLoop
@@ -359,9 +387,9 @@ function Parse-WorkoutDocument {
       }
     )
 
-    $workoutId = "{0}-{1}" -f $Environment, (ConvertTo-Slug $name)
+    $workoutId = "{0}-{1}-{2}" -f $Phase, $Environment, (ConvertTo-Slug $name)
     $intensity = ConvertTo-Intensity -Name $name -Category $category -Level $level -Length $lengthMetadata.key
-    $description = ConvertTo-Description -Category $category -Environment $Environment -Phase $Phase -Level $level
+    $description = $name
 
     [void]$workouts.Add(@{
         id = $workoutId
@@ -382,6 +410,10 @@ function Parse-WorkoutDocument {
       })
 
     $index = $cursor - 1
+  }
+
+  if ($workouts.Count -eq 0) {
+    throw "No workouts were parsed from $Path"
   }
 
   return $workouts
@@ -437,13 +469,43 @@ $outputPath = Join-Path (Resolve-Path (Join-Path $scriptRoot "..")) "src\\featur
 
 $documentConfigs = @(
   @{
-    path = Join-Path $referencesRoot "Menstrual_Phase_Workouts_version 2(1).docx"
+    path = Resolve-ReferenceDocumentPath -ReferencesRoot $referencesRoot -Pattern "Menstrual_Phase_Workouts_version 2*.docx"
     phase = "menstrual"
     environment = "home"
   },
   @{
-    path = Join-Path $referencesRoot "Menstrual_Phase_Gym_Workouts_version 2(1).docx"
+    path = Resolve-ReferenceDocumentPath -ReferencesRoot $referencesRoot -Pattern "Menstrual_Phase_Gym_Workouts_version 2*.docx"
     phase = "menstrual"
+    environment = "gym"
+  },
+  @{
+    path = Resolve-ReferenceDocumentPath -ReferencesRoot $referencesRoot -Pattern "Follicular_Phase_25_Workouts*.docx"
+    phase = "follicular"
+    environment = "home"
+  },
+  @{
+    path = Resolve-ReferenceDocumentPath -ReferencesRoot $referencesRoot -Pattern "Follicular_Phase_Gym_Workouts*.docx"
+    phase = "follicular"
+    environment = "gym"
+  },
+  @{
+    path = Resolve-ReferenceDocumentPath -ReferencesRoot $referencesRoot -Pattern "Ovulation_Phase_25_Workouts*.docx"
+    phase = "ovulation"
+    environment = "home"
+  },
+  @{
+    path = Resolve-ReferenceDocumentPath -ReferencesRoot $referencesRoot -Pattern "Ovulation_Phase_Gym_Workouts*.docx"
+    phase = "ovulation"
+    environment = "gym"
+  },
+  @{
+    path = Resolve-ReferenceDocumentPath -ReferencesRoot $referencesRoot -Pattern "Luteal_Phase_25_Workouts*.docx"
+    phase = "luteal"
+    environment = "home"
+  },
+  @{
+    path = Resolve-ReferenceDocumentPath -ReferencesRoot $referencesRoot -Pattern "Luteal_Phase_Gym_Workouts*.docx"
+    phase = "luteal"
     environment = "gym"
   }
 )

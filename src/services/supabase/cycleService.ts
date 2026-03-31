@@ -12,6 +12,10 @@ export type SaveCycleSettingsInput = {
   last_period_date: string;
   cycle_length_days: number;
   period_length_days: number;
+  historical_last_period_date?: string | null;
+  historical_cycle_length_days?: number | null;
+  historical_period_length_days?: number | null;
+  future_phase_start_date?: string | null;
 };
 
 function createEmptyState(): CycleSettingsState {
@@ -104,7 +108,11 @@ export async function getCycleSettingsState(): Promise<CycleSettingsState> {
       const remoteSettings = await upsertRemoteCycleSettings(userId, {
         last_period_date: localState.settings.last_period_date,
         cycle_length_days: localState.settings.cycle_length_days,
-        period_length_days: localState.settings.period_length_days
+        period_length_days: localState.settings.period_length_days,
+        historical_last_period_date: localState.settings.historical_last_period_date,
+        historical_cycle_length_days: localState.settings.historical_cycle_length_days,
+        historical_period_length_days: localState.settings.historical_period_length_days,
+        future_phase_start_date: localState.settings.future_phase_start_date
       });
       const syncedState = buildSyncedState(remoteSettings);
       await writeLocalCycleSettingsState(userId, syncedState);
@@ -151,6 +159,10 @@ export async function saveCycleSettings(input: SaveCycleSettingsInput): Promise<
     last_period_date: input.last_period_date,
     cycle_length_days: input.cycle_length_days,
     period_length_days: input.period_length_days,
+    historical_last_period_date: input.historical_last_period_date ?? null,
+    historical_cycle_length_days: input.historical_cycle_length_days ?? null,
+    historical_period_length_days: input.historical_period_length_days ?? null,
+    future_phase_start_date: input.future_phase_start_date ?? null,
     created_at: localState?.settings?.created_at ?? timestamp,
     updated_at: timestamp
   };
