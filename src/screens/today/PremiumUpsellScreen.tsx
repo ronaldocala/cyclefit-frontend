@@ -5,7 +5,6 @@ import { AppButton } from "@/components/AppButton";
 import { AppCard } from "@/components/AppCard";
 import { AppText } from "@/components/AppText";
 import { ScreenContainer } from "@/components/ScreenContainer";
-import { presentCycleFitProPaywall } from "@/services/revenuecat/revenueCatService";
 import { useThemeColors } from "@/theme/ThemeProvider";
 import { spacing, type ThemeColors } from "@/theme/tokens";
 
@@ -68,16 +67,11 @@ export function PremiumUpsellScreen() {
             </View>
           </View>
 
-          <AppButton
-            label="View CycleFit+ Pro plans"
-            onPress={() => {
-              void presentCycleFitProPaywall();
-            }}
-          />
+          <AppButton label="Premium temporarily unavailable" variant="outline" disabled style={styles.disabledButton} />
           <AppButton label="Skip for now" variant="ghost" />
 
           <AppText variant="caption" muted style={styles.footnote}>
-            After 7 days, you will be charged $119.99 annually unless cancelled.
+            Premium purchases are temporarily disabled while the iOS build is being stabilized.
           </AppText>
         </View>
       </AppCard>
@@ -112,7 +106,7 @@ const createStyles = (colors: ThemeColors) =>
       paddingVertical: 6
     },
     badgeText: {
-      color: colors.surface
+      color: colors.onPrimary
     },
     body: {
       padding: spacing.xxl,
@@ -160,5 +154,8 @@ const createStyles = (colors: ThemeColors) =>
     },
     footnote: {
       textAlign: "center"
+    },
+    disabledButton: {
+      opacity: 0.6
     }
   });

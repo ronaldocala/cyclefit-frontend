@@ -1,6 +1,6 @@
 ﻿import { useEffect } from "react";
 
-import { readCachedPremium } from "@/services/revenuecat/revenueCatService";
+import { readCachedPremium } from "@/services/premium/premiumAccessService";
 import { getEntitlementStatus } from "@/services/supabase/premiumService";
 import { useAppStore } from "@/store/appStore";
 import { useDemoMode } from "@/utils/demoMode";
