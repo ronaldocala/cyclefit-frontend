@@ -25,6 +25,7 @@ export type RootStackParamList = {
   Auth: undefined;
   Onboarding: undefined;
   Main: undefined;
+  PhaseGuide: undefined;
   PremiumUpsell: undefined;
   WorkoutSession: { sourceType: "user_workout" | "premium_workout" | "quick_log"; sourceId?: string; autoStart?: boolean };
 };

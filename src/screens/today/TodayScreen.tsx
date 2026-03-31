@@ -15,6 +15,7 @@ import { trackEvent } from "@/services/telemetry/analytics";
 import { useAppStore } from "@/store/appStore";
 import { useThemeColors } from "@/theme/ThemeProvider";
 import { radius, spacing, type ThemeColors } from "@/theme/tokens";
+import { formatEuropeanDate } from "@/utils/date";
 import { useDemoMode } from "@/utils/demoMode";
 
 import type { MainTabParamList, RootStackParamList } from "@/navigation/types";
@@ -58,12 +59,33 @@ export function TodayScreen({ navigation }: Props) {
   const activeWorkout = useAppStore((state) => state.activeWorkout);
   const displayName = useMemo(() => getFirstName(profile?.display_name), [profile?.display_name]);
   const welcomeMessage = useMemo(() => buildWelcomeMessage(displayName), [displayName]);
+  const todayLabel = useMemo(() => formatTodayDate(new Date()), []);
   const isActivePhaseWorkout =
     activeWorkout?.sourceType === "premium_workout" && activeWorkout?.sourceId === recommendation?.premiumWorkoutId;
   const [activeCheckInModal, setActiveCheckInModal] = useState<CheckInModal>(null);
   const [draftRating, setDraftRating] = useState(3);
   const modalKind = activeCheckInModal ?? "mood";
   const checkInSyncMessage = dailyProgressState.syncStatus === "pending" ? "Saved offline. Syncing when you're back online." : null;
+  const forecastItems = useMemo(() => {
+    if (!cycleSummary) {
+      return [];
+    }
+
+    return [
+      {
+        key: "ovulation",
+        label: "Next ovulation",
+        date: formatEuropeanDate(cycleSummary.nextOvulationDate),
+        countdown: describeCountdown(cycleSummary.daysUntilNextOvulation)
+      },
+      {
+        key: "period",
+        label: "Next period",
+        date: formatEuropeanDate(cycleSummary.nextPeriodDate),
+        countdown: describeCountdown(cycleSummary.daysUntilNextPeriod)
+      }
+    ];
+  }, [cycleSummary]);
 
   useEffect(() => {
     if (recommendation) {
@@ -101,11 +123,16 @@ export function TodayScreen({ navigation }: Props) {
             {welcomeMessage}
           </AppText>
           <AppText variant="caption" muted>
-            {new Date().toDateString()}
+            {todayLabel}
           </AppText>
         </View>
-        <View style={styles.headerIcon}>
-          <MaterialIcons name="notifications" color={colors.primary} size={18} />
+        <View style={styles.headerActions}>
+          <Pressable style={styles.headerIcon} onPress={() => navigation.navigate("PhaseGuide")}>
+            <MaterialIcons name="menu-book" color={colors.primary} size={18} />
+          </Pressable>
+          <View style={styles.headerIcon}>
+            <MaterialIcons name="notifications" color={colors.primary} size={18} />
+          </View>
         </View>
       </View>
 
@@ -128,9 +155,23 @@ export function TodayScreen({ navigation }: Props) {
           </AppText>
         </View>
         <AppText muted>{cycleSummary.trainingFocus}</AppText>
-        <AppText variant="caption" muted>
-          Next ovulation: {cycleSummary.nextOvulationDate} - Next period: {cycleSummary.nextPeriodDate}
+        <View style={styles.forecastDivider} />
+        <AppText variant="overline" style={styles.forecastHeading}>
+          Coming Up
         </AppText>
+        <View style={styles.forecastGrid}>
+          {forecastItems.map((item) => (
+            <View key={item.key} style={styles.forecastItem}>
+              <AppText variant="caption" muted>
+                {item.label}
+              </AppText>
+              <AppText variant="bodyStrong">{item.date}</AppText>
+              <AppText variant="caption" muted>
+                {item.countdown}
+              </AppText>
+            </View>
+          ))}
+        </View>
       </AppCard>
 
       <AppCard>
@@ -284,6 +325,17 @@ function buildWelcomeMessage(displayName: string): string {
   return template.replace("{name}", displayName);
 }
 
+function formatTodayDate(date: Date): string {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
+
+  return formatter.format(date);
+}
+
 function openCheckInModal(
   modal: Exclude<CheckInModal, null>,
   currentValue: number | null,
@@ -310,6 +362,18 @@ function getRatingLabel(kind: Exclude<CheckInModal, null>, value: number): strin
   return ["Drained", "Low", "Steady", "High", "Ready"][value - 1] ?? "";
 }
 
+function describeCountdown(days: number): string {
+  if (days <= 0) {
+    return "Today";
+  }
+
+  if (days === 1) {
+    return "In 1 day";
+  }
+
+  return `In ${days} days`;
+}
+
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     content: {
@@ -326,6 +390,11 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: "center",
       justifyContent: "space-between"
     },
+    headerActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm
+    },
     headerIcon: {
       width: 36,
       height: 36,
@@ -338,8 +407,30 @@ const createStyles = (colors: ThemeColors) =>
       textAlign: "center"
     },
     forecastCard: {
-      gap: spacing.xs,
+      gap: spacing.sm,
       backgroundColor: colors.surfaceMuted
+    },
+    forecastDivider: {
+      height: 1,
+      backgroundColor: colors.border,
+      opacity: 0.65
+    },
+    forecastHeading: {
+      color: colors.primary
+    },
+    forecastGrid: {
+      flexDirection: "row",
+      gap: spacing.sm
+    },
+    forecastItem: {
+      flex: 1,
+      gap: 2,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border
     },
     rowBetween: {
       flexDirection: "row",

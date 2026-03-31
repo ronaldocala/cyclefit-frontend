@@ -9,6 +9,7 @@ import { usePremiumStatus } from "@/features/subscriptions/hooks/usePremiumStatu
 import { AuthNavigator } from "@/navigation/AuthNavigator";
 import { MainTabNavigator } from "@/navigation/MainTabNavigator";
 import { OnboardingNavigator } from "@/navigation/OnboardingNavigator";
+import { PhaseGuideScreen } from "@/screens/today/PhaseGuideScreen";
 import { PremiumUpsellScreen } from "@/screens/today/PremiumUpsellScreen";
 import { WorkoutSessionScreen } from "@/screens/workout-session/WorkoutSessionScreen";
 import { getCycleSettingsState } from "@/services/supabase/cycleService";
@@ -112,6 +113,7 @@ export function AppNavigator() {
         ) : (
           <Stack.Screen name="Main" component={MainTabNavigator} />
         )}
+        <Stack.Screen name="PhaseGuide" component={PhaseGuideScreen} />
         <Stack.Screen name="PremiumUpsell" component={PremiumUpsellScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="WorkoutSession" component={WorkoutSessionScreen} options={{ presentation: "modal" }} />
       </Stack.Navigator>
