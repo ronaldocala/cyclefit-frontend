@@ -25,7 +25,7 @@ export function WelcomeScreen({ navigation }: Props) {
       <View style={styles.headerRow}>
         <View style={styles.brandRow}>
           <View style={styles.brandIcon}>
-            <MaterialIcons name="favorite" color={colors.surface} size={16} />
+            <MaterialIcons name="favorite" color={colors.onPrimary} size={16} />
           </View>
           <AppText variant="bodyStrong" muted>
             CycleFit+

@@ -1,4 +1,4 @@
-import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import { NavigationContainer, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
@@ -15,7 +15,7 @@ import { getCycleSettingsState } from "@/services/supabase/cycleService";
 import { getOnboardingPreferences } from "@/services/supabase/onboardingService";
 import { getProfile } from "@/services/supabase/profileService";
 import { useAuthStore } from "@/store/authStore";
-import { useThemeColors } from "@/theme/ThemeProvider";
+import { useIsDarkMode, useThemeColors } from "@/theme/ThemeProvider";
 import { type ThemeColors } from "@/theme/tokens";
 
 import type { RootStackParamList } from "./types";
@@ -24,12 +24,13 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function AppNavigator() {
   const colors = useThemeColors();
+  const isDark = useIsDarkMode();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigationTheme = useMemo(
     () => ({
-      ...DefaultTheme,
+      ...(isDark ? DarkTheme : DefaultTheme),
       colors: {
-        ...DefaultTheme.colors,
+        ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
         background: colors.background,
         card: colors.surface,
         text: colors.textPrimary,
@@ -38,7 +39,7 @@ export function AppNavigator() {
         notification: colors.primarySoft
       }
     }),
-    [colors]
+    [colors, isDark]
   );
 
   const session = useAuthStore((state) => state.session);

@@ -23,7 +23,14 @@ export function AppButton({ label, variant = "primary", style, leftSlot, rightSl
     <Pressable {...props} style={[styles.base, styles[variant], style]}>
       <View style={styles.labelRow}>
         {leftSlot}
-        <AppText variant="bodyStrong" style={[styles.label, variant === "primary" ? styles.labelPrimary : undefined]}>
+        <AppText
+          variant="bodyStrong"
+          style={[
+            styles.label,
+            variant === "primary" ? styles.labelPrimary : undefined,
+            variant === "secondary" ? styles.labelSecondary : undefined
+          ]}
+        >
           {label}
         </AppText>
         {rightSlot}
@@ -64,6 +71,9 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.primary
     },
     labelPrimary: {
-      color: colors.surface
+      color: colors.onPrimary
+    },
+    labelSecondary: {
+      color: colors.onAccent
     }
   });

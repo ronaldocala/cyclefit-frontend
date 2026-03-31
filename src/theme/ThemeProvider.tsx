@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, type PropsWithChildren } from "react";
+import { useColorScheme } from "react-native";
 
 import { useQuery } from "@tanstack/react-query";
 
@@ -7,24 +8,30 @@ import { getCycleSettingsState } from "@/services/supabase/cycleService";
 import { useAuthStore } from "@/store/authStore";
 import { useDemoStore } from "@/store/demoStore";
 import { useDemoMode } from "@/utils/demoMode";
-import { getColorsForPhase, defaultColors, type ThemeColors } from "@/theme/tokens";
+import { getColorsForPhase, defaultColors, type ThemeColors, type ThemeMode } from "@/theme/tokens";
 
 import type { CyclePhase } from "@/utils/constants";
 
 type ThemeContextValue = {
   colors: ThemeColors;
   phase: CyclePhase | null;
+  isDark: boolean;
+  mode: ThemeMode;
 };
 
 const ThemeContext = createContext<ThemeContextValue>({
   colors: defaultColors,
-  phase: null
+  phase: null,
+  isDark: false,
+  mode: "light"
 });
 
 export function ThemeProvider({ children }: PropsWithChildren) {
+  const systemColorScheme = useColorScheme();
   const isDemoMode = useDemoMode();
   const session = useAuthStore((state) => state.session);
   const demoCycleSettings = useDemoStore((state) => state.cycleState.settings);
+  const mode: ThemeMode = systemColorScheme === "dark" ? "dark" : "light";
 
   const cycleQuery = useQuery({
     queryKey: ["cycleSettings"],
@@ -44,10 +51,12 @@ export function ThemeProvider({ children }: PropsWithChildren) {
 
   const value = useMemo<ThemeContextValue>(
     () => ({
-      colors: getColorsForPhase(phase),
-      phase
+      colors: getColorsForPhase(phase, mode),
+      phase,
+      isDark: mode === "dark",
+      mode
     }),
-    [phase]
+    [mode, phase]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -59,4 +68,12 @@ export function useThemeColors(): ThemeColors {
 
 export function useThemePhase(): CyclePhase | null {
   return useContext(ThemeContext).phase;
+}
+
+export function useThemeMode(): ThemeMode {
+  return useContext(ThemeContext).mode;
+}
+
+export function useIsDarkMode(): boolean {
+  return useContext(ThemeContext).isDark;
 }

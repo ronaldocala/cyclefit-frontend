@@ -361,7 +361,7 @@ export function WorkoutsScreen({ navigation }: Props) {
                   <AppText variant="bodyStrong" style={selected ? styles.optionRowSelectedText : undefined}>
                     {option.label}
                   </AppText>
-                  {selected ? <MaterialIcons name="check" size={18} color={colors.surface} /> : null}
+                  {selected ? <MaterialIcons name="check" size={18} color={colors.onPrimary} /> : null}
                 </Pressable>
               );
             })}
@@ -483,7 +483,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     modalBackdrop: {
       flex: 1,
-      backgroundColor: "rgba(15,23,42,0.12)",
+      backgroundColor: colors.overlay,
       justifyContent: "center",
       padding: spacing.xl
     },
@@ -526,6 +526,6 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.primary
     },
     optionRowSelectedText: {
-      color: colors.surface
+      color: colors.onPrimary
     }
   });

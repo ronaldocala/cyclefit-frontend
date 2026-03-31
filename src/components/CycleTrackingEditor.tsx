@@ -1,10 +1,24 @@
-import { addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, startOfMonth, startOfWeek, subMonths } from "date-fns";
+import {
+  addDays,
+  addMonths,
+  differenceInCalendarDays,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  startOfMonth,
+  startOfWeek,
+  subMonths
+} from "date-fns";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
+import { AppButton } from "@/components/AppButton";
 import { AppText } from "@/components/AppText";
-import { useThemeColors } from "@/theme/ThemeProvider";
+import { useThemeColors, useThemeMode } from "@/theme/ThemeProvider";
 import { getColorsForPhase, radius, spacing, type ThemeColors } from "@/theme/tokens";
 import { asDate, toIsoDate } from "@/utils/date";
 
@@ -20,17 +34,21 @@ type CycleTrackingEditorProps = {
   showForecast?: boolean;
   cycleLengthOptions?: readonly number[];
   periodLengthOptions?: readonly number[];
+  historyValue?: CycleTrackingDraft | null;
+  futurePhaseStartDate?: string | null;
+  onTrackPeriodToday?: (() => void) | null;
   style?: StyleProp<ViewStyle>;
 };
 
 type LengthMenu = "cycle" | "period" | null;
+type PhaseDateSets = {
+  periodDates: Set<string>;
+  ovulationDates: Set<string>;
+};
 
 const defaultCycleOptions = Array.from({ length: 15 }, (_, index) => 21 + index);
 const defaultPeriodOptions = Array.from({ length: 9 }, (_, index) => 2 + index);
 const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
-const menstrualColors = getColorsForPhase("menstrual");
-const ovulationColors = getColorsForPhase("ovulation");
-
 function buildCalendarDays(monthDate: Date): Date[] {
   return eachDayOfInterval({
     start: startOfWeek(startOfMonth(monthDate), { weekStartsOn: 1 }),
@@ -52,19 +70,122 @@ function buildLengthOptions(options: readonly number[], currentValue: number): n
   return Array.from(new Set([...options, currentValue])).sort((left, right) => left - right);
 }
 
+function createEmptyPhaseDateSets(): PhaseDateSets {
+  return {
+    periodDates: new Set<string>(),
+    ovulationDates: new Set<string>()
+  };
+}
+
+function addClampedDateRange(
+  dates: Set<string>,
+  startDate: Date,
+  endDate: Date,
+  rangeStart: Date,
+  rangeEnd: Date,
+  minDate?: Date,
+  maxDate?: Date
+): void {
+  let clampedStart = startDate;
+  let clampedEnd = endDate;
+
+  if (rangeStart.getTime() > clampedStart.getTime()) {
+    clampedStart = rangeStart;
+  }
+
+  if (rangeEnd.getTime() < clampedEnd.getTime()) {
+    clampedEnd = rangeEnd;
+  }
+
+  if (minDate && minDate.getTime() > clampedStart.getTime()) {
+    clampedStart = minDate;
+  }
+
+  if (maxDate && maxDate.getTime() < clampedEnd.getTime()) {
+    clampedEnd = maxDate;
+  }
+
+  if (clampedStart.getTime() > clampedEnd.getTime()) {
+    return;
+  }
+
+  const daysInRange = differenceInCalendarDays(clampedEnd, clampedStart);
+
+  for (let index = 0; index <= daysInRange; index += 1) {
+    dates.add(toIsoDate(addDays(clampedStart, index)));
+  }
+}
+
+function buildPhaseDateSets({
+  anchorDate,
+  cycleLength,
+  periodLength,
+  rangeStart,
+  rangeEnd,
+  minDate,
+  maxDate
+}: {
+  anchorDate: Date;
+  cycleLength: number;
+  periodLength: number;
+  rangeStart: Date;
+  rangeEnd: Date;
+  minDate?: Date;
+  maxDate?: Date;
+}): PhaseDateSets {
+  const phaseDates = createEmptyPhaseDateSets();
+  const ovulationCenter = Math.min(Math.max(cycleLength - 14, periodLength + 1), cycleLength);
+  const ovulationStartOffset = Math.max(ovulationCenter - 1, periodLength + 1) - 1;
+  const ovulationEndOffset = Math.min(ovulationCenter + 1, cycleLength) - 1;
+  const firstCycleIndex = Math.floor(differenceInCalendarDays(rangeStart, anchorDate) / cycleLength) - 1;
+  let cycleStart = addDays(anchorDate, firstCycleIndex * cycleLength);
+
+  while (cycleStart.getTime() <= rangeEnd.getTime()) {
+    addClampedDateRange(
+      phaseDates.periodDates,
+      cycleStart,
+      addDays(cycleStart, periodLength - 1),
+      rangeStart,
+      rangeEnd,
+      minDate,
+      maxDate
+    );
+    addClampedDateRange(
+      phaseDates.ovulationDates,
+      addDays(cycleStart, ovulationStartOffset),
+      addDays(cycleStart, ovulationEndOffset),
+      rangeStart,
+      rangeEnd,
+      minDate,
+      maxDate
+    );
+
+    cycleStart = addDays(cycleStart, cycleLength);
+  }
+
+  return phaseDates;
+}
+
 export function CycleTrackingEditor({
   value,
   onChange,
   showForecast = false,
   cycleLengthOptions = defaultCycleOptions,
   periodLengthOptions = defaultPeriodOptions,
+  historyValue = null,
+  futurePhaseStartDate = null,
+  onTrackPeriodToday = null,
   style
 }: CycleTrackingEditorProps) {
   const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const mode = useThemeMode();
+  const menstrualColors = useMemo(() => getColorsForPhase("menstrual", mode), [mode]);
+  const ovulationColors = useMemo(() => getColorsForPhase("ovulation", mode), [mode]);
+  const styles = useMemo(() => createStyles(colors, menstrualColors, ovulationColors), [colors, menstrualColors, ovulationColors]);
   const { lastPeriodDate, cycleLengthDays, periodLengthDays } = value;
   const [visibleMonth, setVisibleMonth] = useState(asDate(lastPeriodDate));
   const [activeLengthMenu, setActiveLengthMenu] = useState<LengthMenu>(null);
+  const today = useMemo(() => asDate(toIsoDate(new Date())), []);
 
   useEffect(() => {
     setVisibleMonth(asDate(lastPeriodDate));
@@ -83,33 +204,76 @@ export function CycleTrackingEditor({
   const safeCycleLength = Math.max(cycleLengthDays, 1);
   const safePeriodLength = Math.max(periodLengthDays, 1);
   const forecastEnabled = showForecast && safePeriodLength < safeCycleLength;
+  const splitStartDate = useMemo(
+    () => (futurePhaseStartDate ? asDate(futurePhaseStartDate) : null),
+    [futurePhaseStartDate]
+  );
+  const historyCutoffDate = useMemo(
+    () => (splitStartDate ? addDays(splitStartDate, -1) : null),
+    [splitStartDate]
+  );
   const selectedPeriodDates = useMemo(
     () => Array.from({ length: safePeriodLength }, (_, index) => addDays(selectedStartDate, index)),
     [safePeriodLength, selectedStartDate]
   );
-  const selectedNextPeriodDates = useMemo(() => {
-    if (!forecastEnabled) {
-      return [];
-    }
-
-    const nextPeriodStartDate = addDays(selectedStartDate, safeCycleLength);
-    return Array.from({ length: safePeriodLength }, (_, index) => addDays(nextPeriodStartDate, index));
-  }, [forecastEnabled, safeCycleLength, safePeriodLength, selectedStartDate]);
-  const selectedOvulationDates = useMemo(() => {
-    if (!forecastEnabled) {
-      return [];
-    }
-
-    const ovulationCenter = Math.min(Math.max(safeCycleLength - 14, safePeriodLength + 1), safeCycleLength);
-    const ovulationStartDay = Math.max(ovulationCenter - 1, safePeriodLength + 1);
-    const ovulationEndDay = Math.min(ovulationCenter + 1, safeCycleLength);
-
-    return Array.from({ length: ovulationEndDay - ovulationStartDay + 1 }, (_, index) =>
-      addDays(selectedStartDate, ovulationStartDay - 1 + index)
-    );
-  }, [forecastEnabled, safeCycleLength, safePeriodLength, selectedStartDate]);
+  const selectedPeriodDateKeys = useMemo(
+    () => new Set(selectedPeriodDates.map((day) => toIsoDate(day))),
+    [selectedPeriodDates]
+  );
   const calendarDays = useMemo(() => buildCalendarDays(visibleMonth), [visibleMonth]);
   const calendarWeeks = useMemo(() => chunkIntoWeeks(calendarDays), [calendarDays]);
+  const calendarRangeStart = calendarDays[0] ?? selectedStartDate;
+  const calendarRangeEnd = calendarDays[calendarDays.length - 1] ?? selectedStartDate;
+  const historicalPhaseDates = useMemo(() => {
+    if (!forecastEnabled || !historyValue || !historyCutoffDate) {
+      return createEmptyPhaseDateSets();
+    }
+
+    return buildPhaseDateSets({
+      anchorDate: asDate(historyValue.lastPeriodDate),
+      cycleLength: Math.max(historyValue.cycleLengthDays, 1),
+      periodLength: Math.max(historyValue.periodLengthDays, 1),
+      rangeStart: calendarRangeStart,
+      rangeEnd: calendarRangeEnd,
+      maxDate: historyCutoffDate
+    });
+  }, [calendarRangeEnd, calendarRangeStart, forecastEnabled, historyCutoffDate, historyValue]);
+  const activePhaseDates = useMemo(() => {
+    if (!forecastEnabled) {
+      return createEmptyPhaseDateSets();
+    }
+
+    return buildPhaseDateSets({
+      anchorDate: selectedStartDate,
+      cycleLength: safeCycleLength,
+      periodLength: safePeriodLength,
+      rangeStart: calendarRangeStart,
+      rangeEnd: calendarRangeEnd,
+      minDate: splitStartDate ?? today
+    });
+  }, [calendarRangeEnd, calendarRangeStart, forecastEnabled, safeCycleLength, safePeriodLength, selectedStartDate, splitStartDate, today]);
+  const forecastPeriodDateKeys = useMemo(() => {
+    const dates = new Set<string>(historicalPhaseDates.periodDates);
+
+    activePhaseDates.periodDates.forEach((date) => {
+      dates.add(date);
+    });
+
+    selectedPeriodDateKeys.forEach((date) => {
+      dates.delete(date);
+    });
+
+    return dates;
+  }, [activePhaseDates.periodDates, historicalPhaseDates.periodDates, selectedPeriodDateKeys]);
+  const ovulationDateKeys = useMemo(() => {
+    const dates = new Set<string>(historicalPhaseDates.ovulationDates);
+
+    activePhaseDates.ovulationDates.forEach((date) => {
+      dates.add(date);
+    });
+
+    return dates;
+  }, [activePhaseDates.ovulationDates, historicalPhaseDates.ovulationDates]);
 
   const activeLengthOptions = activeLengthMenu === "cycle" ? resolvedCycleOptions : resolvedPeriodOptions;
   const activeLengthValue = activeLengthMenu === "cycle" ? cycleLengthDays : periodLengthDays;
@@ -146,21 +310,21 @@ export function CycleTrackingEditor({
         {calendarWeeks.map((week, weekIndex) => (
           <View key={`${format(week[0], "yyyy-MM-dd")}-${weekIndex}`} style={styles.calendarWeekRow}>
             {week.map((day, dayIndex) => {
+              const dayKey = toIsoDate(day);
+              const previousDayKey = toIsoDate(addDays(day, -1));
+              const nextDayKey = toIsoDate(addDays(day, 1));
               const isSelectedStart = isSameDay(day, selectedStartDate);
-              const isInPeriod = selectedPeriodDates.some((selectedDay) => isSameDay(selectedDay, day));
-              const isInNextPeriod = selectedNextPeriodDates.some((selectedDay) => isSameDay(selectedDay, day));
-              const isInOvulation = selectedOvulationDates.some((selectedDay) => isSameDay(selectedDay, day));
+              const isToday = isSameDay(day, today);
+              const isInPeriod = selectedPeriodDateKeys.has(dayKey);
+              const isInForecastPeriod = forecastPeriodDateKeys.has(dayKey);
+              const isInOvulation = ovulationDateKeys.has(dayKey);
               const isCurrentMonth = isSameMonth(day, visibleMonth);
-              const isPeriodStart = isInPeriod && !selectedPeriodDates.some((selectedDay) => isSameDay(selectedDay, addDays(day, -1)));
-              const isPeriodEnd = isInPeriod && !selectedPeriodDates.some((selectedDay) => isSameDay(selectedDay, addDays(day, 1)));
-              const isNextPeriodStart =
-                isInNextPeriod && !selectedNextPeriodDates.some((selectedDay) => isSameDay(selectedDay, addDays(day, -1)));
-              const isNextPeriodEnd =
-                isInNextPeriod && !selectedNextPeriodDates.some((selectedDay) => isSameDay(selectedDay, addDays(day, 1)));
-              const isOvulationStart =
-                isInOvulation && !selectedOvulationDates.some((selectedDay) => isSameDay(selectedDay, addDays(day, -1)));
-              const isOvulationEnd =
-                isInOvulation && !selectedOvulationDates.some((selectedDay) => isSameDay(selectedDay, addDays(day, 1)));
+              const isPeriodStart = isInPeriod && !selectedPeriodDateKeys.has(previousDayKey);
+              const isPeriodEnd = isInPeriod && !selectedPeriodDateKeys.has(nextDayKey);
+              const isForecastPeriodStart = isInForecastPeriod && !forecastPeriodDateKeys.has(previousDayKey);
+              const isForecastPeriodEnd = isInForecastPeriod && !forecastPeriodDateKeys.has(nextDayKey);
+              const isOvulationStart = isInOvulation && !ovulationDateKeys.has(previousDayKey);
+              const isOvulationEnd = isInOvulation && !ovulationDateKeys.has(nextDayKey);
 
               return (
                 <Pressable
@@ -181,12 +345,12 @@ export function CycleTrackingEditor({
                         isPeriodEnd ? styles.periodFillEnd : undefined
                       ]}
                     />
-                  ) : isInNextPeriod ? (
+                  ) : isInForecastPeriod ? (
                     <View
                       style={[
                         styles.nextPeriodFill,
-                        isNextPeriodStart ? styles.nextPeriodFillStart : undefined,
-                        isNextPeriodEnd ? styles.nextPeriodFillEnd : undefined
+                        isForecastPeriodStart ? styles.nextPeriodFillStart : undefined,
+                        isForecastPeriodEnd ? styles.nextPeriodFillEnd : undefined
                       ]}
                     />
                   ) : isInOvulation ? (
@@ -206,7 +370,7 @@ export function CycleTrackingEditor({
                         styles.dayNumberText,
                         !isCurrentMonth ? styles.calendarDayTextMuted : undefined,
                         isInPeriod ? styles.calendarDayTextInPeriod : undefined,
-                        isInNextPeriod ? styles.calendarDayTextInNextPeriod : undefined,
+                        isInForecastPeriod ? styles.calendarDayTextInNextPeriod : undefined,
                         isInOvulation ? styles.calendarDayTextInOvulation : undefined,
                         isSelectedStart ? styles.calendarDayTextSelected : undefined
                       ]}
@@ -214,6 +378,8 @@ export function CycleTrackingEditor({
                       {format(day, "d")}
                     </AppText>
                   </View>
+
+                  {isToday ? <View style={[styles.todayDot, isSelectedStart ? styles.todayDotSelected : undefined]} /> : null}
                 </Pressable>
               );
             })}
@@ -224,6 +390,8 @@ export function CycleTrackingEditor({
       <AppText variant="caption" muted>
         Selected: {lastPeriodDate}
       </AppText>
+
+      {onTrackPeriodToday ? <AppButton label="Track period today" variant="outline" onPress={onTrackPeriodToday} /> : null}
 
       <View style={styles.fieldBlock}>
         <AppText variant="bodyStrong">Average cycle length</AppText>
@@ -265,7 +433,7 @@ export function CycleTrackingEditor({
                     <AppText variant="bodyStrong" style={selected ? styles.optionRowSelectedText : undefined}>
                       {option} days
                     </AppText>
-                    {selected ? <MaterialIcons name="check" size={18} color={colors.surface} /> : null}
+                    {selected ? <MaterialIcons name="check" size={18} color={colors.onAccent} /> : null}
                   </Pressable>
                 );
               })}
@@ -277,7 +445,7 @@ export function CycleTrackingEditor({
   );
 }
 
-const createStyles = (colors: ThemeColors) =>
+const createStyles = (colors: ThemeColors, menstrualColors: ThemeColors, ovulationColors: ThemeColors) =>
   StyleSheet.create({
     root: {
       gap: spacing.md
@@ -399,6 +567,17 @@ const createStyles = (colors: ThemeColors) =>
     dayNumberWrapSelected: {
       backgroundColor: colors.primary
     },
+    todayDot: {
+      position: "absolute",
+      bottom: 8,
+      width: 5,
+      height: 5,
+      borderRadius: radius.full,
+      backgroundColor: colors.primary
+    },
+    todayDotSelected: {
+      backgroundColor: colors.surface
+    },
     dayNumberText: {
       color: colors.textPrimary
     },
@@ -415,7 +594,7 @@ const createStyles = (colors: ThemeColors) =>
       color: ovulationColors.primary
     },
     calendarDayTextSelected: {
-      color: colors.surface
+      color: colors.onPrimary
     },
     selectField: {
       minHeight: 50,
@@ -430,7 +609,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     modalBackdrop: {
       flex: 1,
-      backgroundColor: "rgba(15, 23, 42, 0.24)",
+      backgroundColor: colors.overlay,
       justifyContent: "center",
       paddingHorizontal: spacing.lg
     },
@@ -470,6 +649,6 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.primary
     },
     optionRowSelectedText: {
-      color: colors.surface
+      color: colors.onAccent
     }
   });

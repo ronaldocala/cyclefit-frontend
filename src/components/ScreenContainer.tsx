@@ -196,7 +196,7 @@ export function ScreenContainer({
             accessibilityRole="button"
             accessibilityLabel="Hide keyboard"
           >
-            <MaterialIcons name="keyboard-hide" size={16} color={colors.surface} />
+            <MaterialIcons name="keyboard-hide" size={16} color={colors.onPrimary} />
           </Pressable>
         </>
       ) : null}

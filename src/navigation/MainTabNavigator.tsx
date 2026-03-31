@@ -88,7 +88,7 @@ function MainTabBar(props: BottomTabBarProps) {
         <Pressable style={styles.resumeWorkoutBar} onPress={onResumePress}>
           <View style={styles.resumeWorkoutLeft}>
             <View style={styles.resumeWorkoutIconWrap}>
-              <MaterialIcons name="expand-less" size={16} color={colors.primary} />
+              <MaterialIcons name="expand-less" size={16} color={colors.onAccent} />
             </View>
             <AppText variant="subtitle" style={styles.resumeWorkoutText}>
               Resume Workout
@@ -159,9 +159,9 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: "center"
     },
     resumeWorkoutText: {
-      color: colors.surface
+      color: colors.onPrimary
     },
     resumeWorkoutTimer: {
-      color: colors.surface
+      color: colors.onPrimary
     }
   });

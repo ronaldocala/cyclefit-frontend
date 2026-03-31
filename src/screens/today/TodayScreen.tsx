@@ -168,7 +168,7 @@ export function TodayScreen({ navigation }: Props) {
                 autoStart: !isActivePhaseWorkout
               })
             }
-            rightSlot={<MaterialIcons name="play-circle-filled" color={colors.surface} size={18} />}
+            rightSlot={<MaterialIcons name="play-circle-filled" color={colors.onPrimary} size={18} />}
             style={[styles.recommendationActionButton, styles.recommendationPrimaryActionButton]}
           />
           <AppButton
@@ -400,7 +400,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     modalBackdrop: {
       flex: 1,
-      backgroundColor: "rgba(15,23,42,0.16)",
+      backgroundColor: colors.overlay,
       justifyContent: "center",
       padding: spacing.xl
     },
@@ -453,7 +453,7 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.primary
     },
     ratingOptionSelectedText: {
-      color: colors.surface
+      color: colors.onPrimary
     },
     modalActionRow: {
       flexDirection: "row",

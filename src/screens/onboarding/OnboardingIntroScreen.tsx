@@ -162,7 +162,7 @@ const createStyles = (colors: ThemeColors) =>
       paddingVertical: 6
     },
     heroBadgeText: {
-      color: colors.surface
+      color: colors.onPrimary
     },
     heroOrbPrimary: {
       position: "absolute",
@@ -198,7 +198,7 @@ const createStyles = (colors: ThemeColors) =>
       flex: 1,
       gap: spacing.xs,
       borderRadius: radius.lg,
-      backgroundColor: "rgba(255,255,255,0.74)",
+      backgroundColor: colors.surfaceOverlay,
       padding: spacing.md
     },
     modeTitle: {

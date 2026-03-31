@@ -81,7 +81,7 @@ export function CycleSetupScreen({ navigation }: Props) {
       <AppButton
         label={loading ? "Finishing setup..." : "Finish onboarding"}
         onPress={() => void handleComplete()}
-        rightSlot={<MaterialIcons name="arrow-forward" size={20} color={colors.surface} />}
+        rightSlot={<MaterialIcons name="arrow-forward" size={20} color={colors.onPrimary} />}
       />
 
       <AppButton

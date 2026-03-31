@@ -162,7 +162,7 @@ export function SignInScreen() {
 
                 <AppButton
                   label={loading ? "Verifying..." : "Verify and continue"}
-                  leftSlot={<MaterialIcons name="shield" size={18} color={colors.surface} />}
+                  leftSlot={<MaterialIcons name="shield" size={18} color={colors.onPrimary} />}
                   disabled={loading}
                   onPress={() => void handleVerifyCode()}
                 />
@@ -177,7 +177,7 @@ export function SignInScreen() {
             ) : (
               <AppButton
                 label={loading ? "Sending..." : "Email me a code"}
-                leftSlot={<MaterialIcons name="mail-outline" size={20} color={colors.surface} />}
+                leftSlot={<MaterialIcons name="mail-outline" size={20} color={colors.onPrimary} />}
                 disabled={loading}
                 onPress={() => void handleSendCode()}
               />

@@ -178,10 +178,10 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.primary
     },
     optionTextActive: {
-      color: colors.surface
+      color: colors.onPrimary
     },
     optionBodyActive: {
-      color: colors.surface
+      color: colors.onPrimary
     },
     chipRow: {
       flexDirection: "row",
@@ -206,6 +206,6 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.sage
     },
     chipActiveText: {
-      color: colors.primary
+      color: colors.onAccent
     }
   });

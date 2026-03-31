@@ -1369,11 +1369,11 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
         </View>
       </View>
 
-      <View style={styles.phaseBadge}>
-        <MaterialIcons name="opacity" size={14} color={colors.primary} />
-        <AppText variant="caption" style={styles.phaseText}>
-          {phaseLabel}
-        </AppText>
+        <View style={styles.phaseBadge}>
+          <MaterialIcons name="opacity" size={14} color={colors.onAccent} />
+          <AppText variant="caption" style={styles.phaseText}>
+            {phaseLabel}
+          </AppText>
       </View>
 
       {isPremiumSession ? (
@@ -1599,8 +1599,8 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
                 </AppText>
               </View>
               <View style={styles.summaryIconWrap}>
-                <MaterialIcons name="fitness-center" size={20} color={colors.primary} />
-              </View>
+                  <MaterialIcons name="fitness-center" size={20} color={colors.onAccent} />
+                </View>
             </View>
 
             <View style={styles.summaryFields}>
@@ -1806,7 +1806,7 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
               </Pressable>
 
               <Pressable style={styles.timerPlayButton} onPress={onTimerTogglePress}>
-                <MaterialIcons name={isTimerRunning ? "pause" : "play-arrow"} size={30} color={colors.surface} />
+                <MaterialIcons name={isTimerRunning ? "pause" : "play-arrow"} size={30} color={colors.onPrimary} />
               </Pressable>
 
               <Pressable style={styles.timerAdjustButton} onPress={() => onTimerAdjustPress(15)}>
@@ -1822,15 +1822,21 @@ export function WorkoutSessionScreen({ route, navigation }: Props) {
               </AppText>
               <View style={styles.timerPresetRow}>
                 {TIMER_PRESET_SECONDS.map((seconds) => (
-                  <Pressable
-                    key={`preset-${seconds}`}
-                    style={[styles.timerPresetButton, timerRemainingSeconds === seconds && !isTimerRunning ? styles.timerPresetButtonActive : undefined]}
-                    onPress={() => onTimerPresetPress(seconds)}
-                  >
-                    <AppText variant="bodyStrong" style={styles.timerPresetButtonText}>
-                      {formatClock(seconds)}
-                    </AppText>
-                  </Pressable>
+                    <Pressable
+                      key={`preset-${seconds}`}
+                      style={[styles.timerPresetButton, timerRemainingSeconds === seconds && !isTimerRunning ? styles.timerPresetButtonActive : undefined]}
+                      onPress={() => onTimerPresetPress(seconds)}
+                    >
+                      <AppText
+                        variant="bodyStrong"
+                        style={[
+                          styles.timerPresetButtonText,
+                          timerRemainingSeconds === seconds && !isTimerRunning ? styles.timerPresetButtonTextActive : undefined
+                        ]}
+                      >
+                        {formatClock(seconds)}
+                      </AppText>
+                    </Pressable>
                 ))}
               </View>
             </View>
@@ -1911,7 +1917,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     opacity: 0.45
   },
   headerActionButtonText: {
-    color: colors.surface
+    color: colors.onPrimary
   },
   headerMeta: {
     gap: 2,
@@ -1938,7 +1944,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.sage
   },
   phaseText: {
-    color: colors.primary,
+    color: colors.onAccent,
     fontWeight: "700"
   },
   blockGap: {
@@ -1976,7 +1982,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.md,
-    backgroundColor: "#DDE8E3",
+    backgroundColor: colors.sage,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -2014,7 +2020,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.primary
   },
   intensityTextActive: {
-    color: colors.surface
+    color: colors.onPrimary
   },
   exerciseRow: {
     flexDirection: "row",
@@ -2076,7 +2082,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   lockedCard: {
     position: "relative",
-    backgroundColor: "#EAF0ED",
+    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
@@ -2099,7 +2105,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     paddingHorizontal: spacing.xl,
-    backgroundColor: "rgba(247,245,242,0.78)"
+    backgroundColor: colors.surfaceOverlay
   },
   lockTextCenter: {
     textAlign: "center"
@@ -2217,7 +2223,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   setRowComplete: {
     borderColor: colors.sage,
-    backgroundColor: "#ECF5F0"
+    backgroundColor: colors.sage
   },
   setRowHeader: {
     flexDirection: "row",
@@ -2237,13 +2243,13 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingVertical: 2
   },
   setRowStatusComplete: {
-    backgroundColor: "#D7EBDD"
+    backgroundColor: colors.sage
   },
   setRowStatusTextPending: {
     color: colors.textMuted
   },
   setRowStatusTextComplete: {
-    color: "#1E5A3E"
+    color: colors.onAccent
   },
   setRowInputs: {
     flexDirection: "row",
@@ -2266,7 +2272,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   headerMenuBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(15,23,42,0.08)"
+    backgroundColor: colors.overlay
   },
   headerMenuContainer: {
     alignItems: "flex-end",
@@ -2293,7 +2299,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   timerModalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(15,23,42,0.35)",
+    backgroundColor: colors.overlay,
     justifyContent: "flex-end"
   },
   timerModalCard: {
@@ -2397,6 +2403,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   timerPresetButtonText: {
     color: colors.primary
   },
+  timerPresetButtonTextActive: {
+    color: colors.onAccent
+  },
   keyboardNavGroup: {
     flexDirection: "row",
     alignItems: "center",
@@ -2420,7 +2429,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   exampleModalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: colors.overlay,
     justifyContent: "center",
     padding: spacing.lg
   },
@@ -2446,6 +2455,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     width: "100%",
     aspectRatio: 1,
     padding: spacing.md,
-    backgroundColor: "#E7F1EC"
+    backgroundColor: colors.surfaceMuted
   }
 });
