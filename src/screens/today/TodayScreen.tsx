@@ -129,8 +129,9 @@ export function TodayScreen({ navigation }: Props) {
           </AppText>
         </View>
         <View style={styles.headerActions}>
-          <Pressable style={styles.headerIcon} onPress={() => navigation.navigate("PhaseGuide")}>
-            <MaterialIcons name="menu-book" color={colors.primary} size={18} />
+          <Pressable style={styles.headerGuideButton} onPress={() => navigation.navigate("PhaseGuide")}>
+            <MaterialIcons name="menu-book" color={colors.primary} size={16} />
+            <AppText variant="caption" style={styles.headerGuideLabel}>Guide</AppText>
           </Pressable>
           <View style={styles.headerIcon}>
             <MaterialIcons name="notifications" color={colors.primary} size={18} />
@@ -396,6 +397,18 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surface,
       alignItems: "center",
       justifyContent: "center"
+    },
+    headerGuideButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: spacing.sm,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.surface
+    },
+    headerGuideLabel: {
+      color: colors.primary
     },
     note: {
       textAlign: "center"
