@@ -4,6 +4,12 @@ import type { CycleSettings } from "@/api/types";
 import type { CyclePhase } from "@/utils/constants";
 import { asDate, toIsoDate } from "@/utils/date";
 
+export type CyclePhaseSegment = {
+  phase: CyclePhase;
+  startDay: number;
+  endDay: number;
+};
+
 export type CycleSummary = {
   dayInCycle: number;
   cycleLengthDays: number;
@@ -53,6 +59,23 @@ export function getCyclePhaseDescriptor(phase: CyclePhase): PhaseDescriptor {
   return phaseDescriptors[phase];
 }
 
+export function buildCyclePhaseSegments(cycleLengthDays: number, periodLengthDays: number): CyclePhaseSegment[] {
+  const boundedCycleLength = Math.max(cycleLengthDays, 1);
+  const boundedPeriodLength = clamp(periodLengthDays, 1, boundedCycleLength);
+  const ovulationCenter = boundedCycleLength - 14;
+  const ovulationStart = clamp(Math.max(ovulationCenter - 1, boundedPeriodLength + 1), 1, boundedCycleLength);
+  const ovulationEnd = clamp(Math.min(ovulationCenter + 1, boundedCycleLength), 1, boundedCycleLength);
+
+  const segments: CyclePhaseSegment[] = [
+    { phase: "menstrual", startDay: 1, endDay: boundedPeriodLength },
+    { phase: "follicular", startDay: boundedPeriodLength + 1, endDay: ovulationStart - 1 },
+    { phase: "ovulation", startDay: ovulationStart, endDay: ovulationEnd },
+    { phase: "luteal", startDay: ovulationEnd + 1, endDay: boundedCycleLength }
+  ];
+
+  return segments.filter((segment) => segment.startDay <= segment.endDay);
+}
+
 export function computeCycleSummary(
   settings: Pick<CycleSettings, "last_period_date" | "cycle_length_days" | "period_length_days">,
   today = new Date()
@@ -61,24 +84,8 @@ export function computeCycleSummary(
   const daysSinceStart = differenceInCalendarDays(today, startDate);
   const normalized = ((daysSinceStart % settings.cycle_length_days) + settings.cycle_length_days) % settings.cycle_length_days;
   const dayInCycle = normalized + 1;
-
-  let phase: CyclePhase = "luteal";
-
-  if (dayInCycle <= settings.period_length_days) {
-    phase = "menstrual";
-  } else {
-    const ovulationCenter = settings.cycle_length_days - 14;
-    const ovulationStart = Math.max(ovulationCenter - 1, settings.period_length_days + 1);
-    const ovulationEnd = Math.min(ovulationCenter + 1, settings.cycle_length_days);
-
-    if (dayInCycle < ovulationStart) {
-      phase = "follicular";
-    } else if (dayInCycle <= ovulationEnd) {
-      phase = "ovulation";
-    } else {
-      phase = "luteal";
-    }
-  }
+  const phaseSegments = buildCyclePhaseSegments(settings.cycle_length_days, settings.period_length_days);
+  const phase = phaseSegments.find((segment) => dayInCycle >= segment.startDay && dayInCycle <= segment.endDay)?.phase ?? "luteal";
 
   const nextPeriodOffset = settings.cycle_length_days - normalized;
   const ovulationDay = Math.min(Math.max(settings.cycle_length_days - 14, settings.period_length_days + 1), settings.cycle_length_days);
@@ -101,4 +108,8 @@ export function computeCycleSummary(
     daysUntilNextPeriod: nextPeriodOffset,
     daysUntilNextOvulation: ovulationOffset
   };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
