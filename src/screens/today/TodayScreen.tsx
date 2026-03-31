@@ -66,6 +66,16 @@ export function TodayScreen({ navigation }: Props) {
   const [draftRating, setDraftRating] = useState(3);
   const modalKind = activeCheckInModal ?? "mood";
   const checkInSyncMessage = dailyProgressState.syncStatus === "pending" ? "Saved offline. Syncing when you're back online." : null;
+  const phaseTip = useMemo(() => {
+    if (!cycleSummary) return null;
+
+    const transitionTip = getTransitionTip(cycleSummary.daysUntilNextOvulation, cycleSummary.daysUntilNextPeriod);
+    const pool = [cycleSummary.phaseNote, cycleSummary.trainingFocus];
+
+    if (transitionTip) pool.push(transitionTip);
+
+    return pool[Math.floor(Math.random() * pool.length)] ?? null;
+  }, [cycleSummary]);
   const forecastItems = useMemo(() => {
     if (!cycleSummary) {
       return [];
@@ -139,34 +149,31 @@ export function TodayScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <PhaseRing
-        dayInCycle={cycleSummary.dayInCycle}
-        cycleLengthDays={cycleSummary.cycleLengthDays}
-        periodLengthDays={cycleSettings?.period_length_days}
-        phaseLabel={`${cycleSummary.phaseLabel} Phase`}
-      />
-
-      <AppText muted style={styles.note}>
-        {cycleSummary.phaseNote}
-      </AppText>
-
-      <AppCard style={styles.forecastCard}>
-        <View style={styles.rowBetween}>
-          <AppText variant="subtitle">{cycleSummary.phaseLabel} focus</AppText>
-          <AppText variant="caption" muted>
-            {cycleState?.syncStatus === "pending" ? "Offline save pending" : "In sync"}
-          </AppText>
-        </View>
-        <AppText muted>{cycleSummary.trainingFocus}</AppText>
-        <View style={styles.forecastGrid}>
-          {forecastItems.map((item) => (
-            <View key={item.key} style={styles.forecastItem}>
-              <AppText variant="caption" muted>{item.label}</AppText>
-              <AppText variant="bodyStrong">{item.date}</AppText>
-              <AppText variant="caption" muted>{item.countdown}</AppText>
+      <AppCard style={styles.phaseCard}>
+        <View style={styles.phaseRow}>
+          {forecastItems[0] ? (
+            <View style={styles.phaseSideItem}>
+              <AppText variant="caption" muted style={styles.phaseSideLabel}>{forecastItems[0].label}</AppText>
+              <AppText variant="bodyStrong" style={styles.phaseSideDate}>{forecastItems[0].date}</AppText>
+              <AppText variant="caption" muted style={styles.phaseSideDate}>{forecastItems[0].countdown}</AppText>
             </View>
-          ))}
+          ) : null}
+          <PhaseRing
+            dayInCycle={cycleSummary.dayInCycle}
+            cycleLengthDays={cycleSummary.cycleLengthDays}
+            periodLengthDays={cycleSettings?.period_length_days}
+            phaseLabel={`${cycleSummary.phaseLabel} Phase`}
+            size={160}
+          />
+          {forecastItems[1] ? (
+            <View style={styles.phaseSideItem}>
+              <AppText variant="caption" muted style={styles.phaseSideLabel}>{forecastItems[1].label}</AppText>
+              <AppText variant="bodyStrong" style={styles.phaseSideDate}>{forecastItems[1].date}</AppText>
+              <AppText variant="caption" muted style={styles.phaseSideDate}>{forecastItems[1].countdown}</AppText>
+            </View>
+          ) : null}
         </View>
+        {phaseTip ? <AppText variant="caption" muted style={styles.phaseNote}>{phaseTip}</AppText> : null}
       </AppCard>
 
       <AppCard>
@@ -357,6 +364,39 @@ function getRatingLabel(kind: Exclude<CheckInModal, null>, value: number): strin
   return ["Drained", "Low", "Steady", "High", "Ready"][value - 1] ?? "";
 }
 
+const TRANSITION_TIPS: Record<string, string[]> = {
+  ovulation: [
+    "Ovulation is almost here — your energy and strength are about to peak. Start planning your hardest sessions.",
+    "Peak performance window incoming. Prepare for high-intensity rides and PR attempts in the next few days.",
+    "Pre-ovulation phase: estrogen is surging. A great time to push harder in training — get ready for it."
+  ],
+  period: [
+    "Your period is approaching — dial back intensity and focus on mobility, stretching, and easy spinning.",
+    "Menstrual phase incoming. Stock up on iron-rich foods and plan lighter, restorative workouts.",
+    "Flow is coming. Honour your body by easing up on load and prioritising rest and recovery rides."
+  ]
+};
+
+const TRANSITION_THRESHOLD_DAYS = 3;
+
+function getTransitionTip(daysUntilNextOvulation: number, daysUntilNextPeriod: number): string | null {
+  const tips: string[] = [];
+
+  if (daysUntilNextOvulation <= TRANSITION_THRESHOLD_DAYS && daysUntilNextOvulation > 0) {
+    tips.push(...TRANSITION_TIPS.ovulation);
+  }
+
+  if (daysUntilNextPeriod <= TRANSITION_THRESHOLD_DAYS && daysUntilNextPeriod > 0) {
+    tips.push(...TRANSITION_TIPS.period);
+  }
+
+  if (tips.length === 0) {
+    return null;
+  }
+
+  return tips[Math.floor(Math.random() * tips.length)] ?? null;
+}
+
 function describeCountdown(days: number): string {
   if (days <= 0) {
     return "Today";
@@ -410,26 +450,28 @@ const createStyles = (colors: ThemeColors) =>
     headerGuideLabel: {
       color: colors.primary
     },
-    note: {
-      textAlign: "center"
-    },
-    forecastCard: {
+    phaseCard: {
       gap: spacing.sm,
       backgroundColor: colors.surfaceMuted
     },
-    forecastGrid: {
+    phaseRow: {
       flexDirection: "row",
-      gap: spacing.sm
+      alignItems: "center",
+      justifyContent: "space-between"
     },
-    forecastItem: {
+    phaseSideItem: {
       flex: 1,
-      gap: 2,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs,
-      borderRadius: radius.md,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border
+      alignItems: "center",
+      gap: 2
+    },
+    phaseSideLabel: {
+      textAlign: "center"
+    },
+    phaseSideDate: {
+      textAlign: "center"
+    },
+    phaseNote: {
+      textAlign: "center"
     },
     rowBetween: {
       flexDirection: "row",
